@@ -77,10 +77,10 @@ function normalizeBody(body) {
 
 function sanitizeUser(userDoc) {
   const username = userDoc.usuario || userDoc.username;
-  const normalizedUsername = typeof username === "string"
-    ? username.toLowerCase()
-    : "";
-  const derivedRole = userDoc.rol ||
+  const normalizedUsername =
+    typeof username === "string" ? username.toLowerCase() : "";
+  const derivedRole =
+    userDoc.rol ||
     userDoc.role ||
     (normalizedUsername === "admin" ? "admin" : "user");
 
@@ -117,8 +117,9 @@ exports.createEntry = onRequest(withCors(async (req, res) => {
   const db = await getDb();
   const collection = db.collection(RECORDS_COLLECTION);
   const now = new Date();
+  const normalizedId = String(employeeId).trim();
   const doc = {
-    employee_id: employeeId,
+    employee_id: normalizedId,
     date: now.toISOString().slice(0, 10),
     check_in: now,
     check_out: null,
@@ -158,11 +159,32 @@ exports.completeEntry = onRequest(withCors(async (req, res) => {
   const db = await getDb();
   const collection = db.collection(RECORDS_COLLECTION);
 
+  const normalizedId = String(employeeId).trim();
   const existing = await collection.findOne(
-      {employee_id: employeeId, status: "incompleto"},
+      {
+        $and: [
+          {
+            $or: [
+              {employee_id: normalizedId},
+              {employee_id: employeeId},
+            ],
+          },
+          {
+            $or: [
+              {status: "incompleto"},
+              {check_out: null},
+              {check_out: {$exists: false}},
+            ],
+          },
+        ],
+      },
       {sort: {check_in: -1}},
   );
   if (!existing) {
+    logger.warn("Entry not found for complete", {
+      employeeId,
+      normalizedId,
+    });
     res.status(404).json({error: "ENTRY_NOT_FOUND"});
     return;
   }
@@ -187,14 +209,39 @@ exports.completeEntry = onRequest(withCors(async (req, res) => {
       {returnDocument: "after"},
   );
 
-  if (!update.value) {
-    res.status(404).json({error: "ENTRY_NOT_FOUND"});
+  if (!update || !update.value) {
+    logger.warn("Update returned no value, verifying manually", {
+      entryId: existing._id,
+    });
+    const verified = await collection.findOne({
+      _id: new ObjectId(existing._id),
+    });
+    if (!verified || !verified.check_out) {
+      res.status(500).json({error: "UPDATE_FAILED"});
+      return;
+    }
+    res.json({
+      id: verified._id,
+      employee_id: verified.employee_id,
+      date: verified.date,
+      check_in: verified.check_in,
+      check_out: verified.check_out,
+      worked_hours: verified.worked_hours,
+      status: verified.status,
+      notes: verified.notes,
+    });
     return;
   }
 
   res.json({
     id: update.value._id,
-    ...update.value,
+    employee_id: update.value.employee_id,
+    date: update.value.date,
+    check_in: update.value.check_in,
+    check_out: update.value.check_out,
+    worked_hours: update.value.worked_hours,
+    status: update.value.status,
+    notes: update.value.notes,
   });
 }));
 
@@ -224,6 +271,48 @@ exports.listEntries = onRequest(withCors(async (req, res) => {
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   })));
+}));
+
+exports.getStats = onRequest(withCors(async (_req, res) => {
+  const db = await getDb();
+  const recordsCollection = db.collection(RECORDS_COLLECTION);
+  const usersCollection = db.collection(USERS_COLLECTION);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const todayFilter = {
+    $or: [
+      {date: today.toISOString().split("T")[0]},
+      {check_in: {$gte: today, $lt: tomorrow}},
+    ],
+  };
+
+  const [allUsers, todayRecords, pendingRecords] = await Promise.all([
+    usersCollection.countDocuments({}),
+    recordsCollection
+        .find({...todayFilter, status: "completo"})
+        .toArray(),
+    recordsCollection.countDocuments({
+      $or: [
+        {check_out: null},
+        {check_out: {$exists: false}},
+      ],
+    }),
+  ]);
+
+  const totalHoursToday = todayRecords.reduce(
+      (sum, record) => sum + (record.worked_hours || 0),
+      0,
+  );
+
+  res.json({
+    activeEmployees: allUsers,
+    hoursToday: Math.round(totalHoursToday * 100) / 100,
+    pending: pendingRecords,
+  });
 }));
 
 exports.login = onRequest(withCors(async (req, res) => {

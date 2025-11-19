@@ -1,15 +1,8 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 import BrandLogo from "./components/BrandLogo";
-import ClockInOut from "./components/ClockInOut";
 import Login from "./components/Login";
 import { useAuth } from "./context/AuthContext";
-
-const summary = [
-  { label: "Colaboradores activos", value: "42", tone: "primary" },
-  { label: "Horas registradas hoy", value: "118h", tone: "accent" },
-  { label: "Pendientes por aprobar", value: "3", tone: "warning" },
-];
 
 function App() {
   const { user, role, logout, apiBase } = useAuth();
@@ -18,8 +11,14 @@ function App() {
   const [adminRecords, setAdminRecords] = useState([]);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState(null);
+  const [stats, setStats] = useState({
+    activeEmployees: 0,
+    hoursToday: 0,
+    pending: 0,
+  });
+  const [statsLoading, setStatsLoading] = useState(false);
   const pendingRecords = adminRecords.filter(
-      (record) => record.status && record.status !== "completo",
+      (record) => record.check_in && !record.check_out,
   );
 
   useEffect(() => {
@@ -49,7 +48,24 @@ function App() {
         }
       }
     };
+    const fetchStats = async () => {
+      setStatsLoading(true);
+      try {
+        const response = await fetch(`${apiBase}/getStats`);
+        const data = await response.json();
+        if (response.ok && isMounted) {
+          setStats(data);
+        }
+      } catch (error) {
+        console.warn("Failed to fetch stats", error);
+      } finally {
+        if (isMounted) {
+          setStatsLoading(false);
+        }
+      }
+    };
     fetchRecords();
+    fetchStats();
     return () => {
       isMounted = false;
     };
@@ -72,10 +88,32 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ employee_id: user.usuario }),
       });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload.message || payload.error || "No se pudo registrar");
+      
+      let payload;
+      try {
+        payload = await response.json();
+      } catch (parseError) {
+        if (response.ok) {
+          setWorkerMessage({
+            type: "success",
+            text:
+              action === "in"
+                ? "Entrada registrada correctamente."
+                : "Salida registrada correctamente.",
+          });
+          return;
+        }
+        throw new Error("Error al procesar la respuesta del servidor");
       }
+      
+      if (!response.ok) {
+        const errorMsg =
+          payload.error === "ENTRY_NOT_FOUND"
+            ? "No se encontró una entrada pendiente. Asegúrate de registrar la entrada primero."
+            : payload.message || payload.error || "No se pudo registrar";
+        throw new Error(errorMsg);
+      }
+      
       setWorkerMessage({
         type: "success",
         text:
@@ -160,41 +198,22 @@ function App() {
         </div>
 
         <div className="hero__summary">
-          {summary.map((item) => (
-            <article key={item.label} className={`summary-card summary-card--${item.tone}`}>
-              <p>{item.label}</p>
-              <strong>{item.value}</strong>
-            </article>
-          ))}
+          <article className="summary-card summary-card--primary">
+            <p>Colaboradores activos</p>
+            <strong>{statsLoading ? "..." : stats.activeEmployees}</strong>
+          </article>
+          <article className="summary-card summary-card--accent">
+            <p>Horas registradas hoy</p>
+            <strong>{statsLoading ? "..." : `${stats.hoursToday}h`}</strong>
+          </article>
+          <article className="summary-card summary-card--warning">
+            <p>Pendientes por aprobar</p>
+            <strong>{statsLoading ? "..." : stats.pending}</strong>
+          </article>
         </div>
       </header>
 
       <main className="dashboard">
-        <section className="panel panel--primary">
-          <div className="panel__header">
-            <h2>Registro en vivo</h2>
-            <p>Usa el reloj digital para iniciar o finalizar cada turno.</p>
-          </div>
-          <ClockInOut />
-        </section>
-
-        <section className="panel panel--secondary">
-          <div className="panel__header">
-            <h2>Guía rápida</h2>
-            <p>Pasos para un registro correcto.</p>
-          </div>
-          <ol className="steps">
-            <li>Verifica que tus datos estén actualizados en el perfil.</li>
-            <li>Inicia la jornada antes de ingresar a producción.</li>
-            <li>Agrega notas con área o tarea específica.</li>
-            <li>Finaliza al entregar turno y confirma supervisión.</li>
-          </ol>
-          <div className="panel__cta">
-            <p>¿Necesitas ajustar un registro?</p>
-            <button className="dk-btn dk-btn--ghost">Contactar a RRHH</button>
-          </div>
-        </section>
-
         <section className="panel">
           <div className="panel__header">
             <h2>Registros pendientes</h2>
