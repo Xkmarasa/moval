@@ -1,0 +1,16 @@
+[debug] [2025-11-19T21:57:49.178Z] ----------------------------------------------------------------------
+[debug] [2025-11-19T21:57:49.180Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Xavi\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy
+[debug] [2025-11-19T21:57:49.181Z] CLI Version:   14.25.0
+[debug] [2025-11-19T21:57:49.181Z] Platform:      win32
+[debug] [2025-11-19T21:57:49.181Z] Node Version:  v22.17.0
+[debug] [2025-11-19T21:57:49.181Z] Time:          Wed Nov 19 2025 22:57:49 GMT+0100 (hora estándar de Europa central)
+[debug] [2025-11-19T21:57:49.181Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-11-19T21:57:49.377Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-11-19T21:57:49.377Z] > authorizing via signed-in user (xavicamarasaa@gmail.com)
+[debug] [2025-11-19T21:57:49.377Z] [iam] checking project moval-fff66 for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2025-11-19T21:57:49.379Z] Checked if tokens are valid: true, expires at: 1763590842981
+[debug] [2025-11-19T21:57:49.379Z] Checked if tokens are valid: true, expires at: 1763590842981
+[debug] [2025-11-19T21:57:49.380Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/moval-fff66:testIamPermissions [none]
+[debug] [2025-11-19T21:57:49.380Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/moval-fff66:testIamPermissions x-goog-quota-user=projects/moval-fff66
+[debug] [2025-11-19T21:57:49.380Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/moval-fff66:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get","firebasehosting.sites.update"]}
