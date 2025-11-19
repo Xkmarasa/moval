@@ -3,6 +3,7 @@ const {setGlobalOptions} = require("firebase-functions/v2");
 const {onRequest} = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const {MongoClient, ObjectId} = require("mongodb");
+const bcrypt = require("bcryptjs");
 
 setGlobalOptions({
   region: "us-central1",
@@ -14,8 +15,10 @@ setGlobalOptions({
 const {
   MONGODB_URI = "mongodb+srv://Xavi:Xavi2712@moval.vfm7zzp.mongodb.net/",
   MONGODB_DB = "moval",
-  HOURS_COLLECTION = "hourEntries",
+  RECORDS_COLLECTION = "registros",
+  USERS_COLLECTION = "usuarios",
   ALLOWED_ORIGINS = "*",
+  ADMIN_SETUP_TOKEN = "",
 } = process.env;
 
 let cachedClient;
@@ -72,6 +75,23 @@ function normalizeBody(body) {
   }
 }
 
+function sanitizeUser(userDoc) {
+  const username = userDoc.usuario || userDoc.username;
+  const normalizedUsername = typeof username === "string"
+    ? username.toLowerCase()
+    : "";
+  const derivedRole = userDoc.rol ||
+    userDoc.role ||
+    (normalizedUsername === "admin" ? "admin" : "user");
+
+  return {
+    id: userDoc._id,
+    usuario: username,
+    nombre: userDoc.nombre || userDoc.name || username,
+    rol: derivedRole,
+  };
+}
+
 exports.healthCheck = onRequest(withCors(async (_req, res) => {
   res.json({status: "ok", timestamp: new Date().toISOString()});
 }));
@@ -83,29 +103,30 @@ exports.createEntry = onRequest(withCors(async (req, res) => {
   }
 
   const payload = normalizeBody(req.body);
-  const {employeeId, note = "", startedAt} = payload;
+  const employeeId = (
+    payload.employee_id ||
+    payload.employeeId ||
+    payload.usuario
+  );
+  const note = payload.notes || payload.note || "";
   if (!employeeId) {
     res.status(400).json({error: "EMPLOYEE_REQUIRED"});
     return;
   }
 
-  const startTime = startedAt ? new Date(startedAt) : new Date();
-  if (isNaN(startTime.getTime())) {
-    res.status(400).json({error: "INVALID_START"});
-    return;
-  }
-
   const db = await getDb();
-  const collection = db.collection(HOURS_COLLECTION);
+  const collection = db.collection(RECORDS_COLLECTION);
+  const now = new Date();
   const doc = {
-    employeeId,
-    note,
-    startedAt: startTime,
-    endedAt: null,
-    durationMinutes: null,
-    status: "IN_PROGRESS",
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    employee_id: employeeId,
+    date: now.toISOString().slice(0, 10),
+    check_in: now,
+    check_out: null,
+    worked_hours: null,
+    status: "incompleto",
+    notes: note,
+    createdAt: now,
+    updatedAt: now,
   };
 
   const result = await collection.insertOne(doc);
@@ -124,44 +145,52 @@ exports.completeEntry = onRequest(withCors(async (req, res) => {
   }
 
   const payload = normalizeBody(req.body);
-  const {entryId, endedAt} = payload;
-  if (!entryId) {
-    res.status(400).json({error: "ENTRY_ID_REQUIRED"});
-    return;
-  }
-
-  const endTime = endedAt ? new Date(endedAt) : new Date();
-  if (isNaN(endTime.getTime())) {
-    res.status(400).json({error: "INVALID_END"});
+  const employeeId = (
+    payload.employee_id ||
+    payload.employeeId ||
+    payload.usuario
+  );
+  if (!employeeId) {
+    res.status(400).json({error: "EMPLOYEE_REQUIRED"});
     return;
   }
 
   const db = await getDb();
-  const collection = db.collection(HOURS_COLLECTION);
+  const collection = db.collection(RECORDS_COLLECTION);
 
-  const existing = await collection.findOne({_id: new ObjectId(entryId)});
+  const existing = await collection.findOne(
+      {employee_id: employeeId, status: "incompleto"},
+      {sort: {check_in: -1}},
+  );
   if (!existing) {
     res.status(404).json({error: "ENTRY_NOT_FOUND"});
     return;
   }
 
-  const durationMinutes = Math.max(
-      1,
-      Math.ceil((endTime.getTime() - existing.startedAt.getTime()) / 60000),
+  const endTime = new Date();
+  const hours = Math.max(
+      0,
+      (endTime.getTime() - new Date(existing.check_in).getTime()) / 3_600_000,
   );
+  const workedHours = Math.round(hours * 100) / 100;
 
   const update = await collection.findOneAndUpdate(
-      {_id: existing._id},
+      {_id: new ObjectId(existing._id)},
       {
         $set: {
-          endedAt: endTime,
-          durationMinutes,
-          status: "COMPLETED",
-          updatedAt: new Date(),
+          check_out: endTime,
+          worked_hours: workedHours,
+          status: "completo",
+          updatedAt: endTime,
         },
       },
       {returnDocument: "after"},
   );
+
+  if (!update.value) {
+    res.status(404).json({error: "ENTRY_NOT_FOUND"});
+    return;
+  }
 
   res.json({
     id: update.value._id,
@@ -174,8 +203,8 @@ exports.listEntries = onRequest(withCors(async (req, res) => {
   const numericLimit = Math.min(parseInt(limit, 10) || 20, 100);
 
   const db = await getDb();
-  const collection = db.collection(HOURS_COLLECTION);
-  const filter = employeeId ? {employeeId} : {};
+  const collection = db.collection(RECORDS_COLLECTION);
+  const filter = employeeId ? {employee_id: employeeId} : {};
 
   const records = await collection
       .find(filter)
@@ -185,13 +214,120 @@ exports.listEntries = onRequest(withCors(async (req, res) => {
 
   res.json(records.map((record) => ({
     id: record._id,
-    employeeId: record.employeeId,
-    note: record.note,
-    startedAt: record.startedAt,
-    endedAt: record.endedAt,
-    durationMinutes: record.durationMinutes,
+    employee_id: record.employee_id,
+    date: record.date,
+    check_in: record.check_in,
+    check_out: record.check_out,
+    worked_hours: record.worked_hours,
     status: record.status,
+    notes: record.notes,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   })));
+}));
+
+exports.login = onRequest(withCors(async (req, res) => {
+  if (req.method !== "POST") {
+    res.status(405).json({error: "METHOD_NOT_ALLOWED"});
+    return;
+  }
+
+  const payload = normalizeBody(req.body);
+  const username = payload.usuario || payload.username;
+  const password = payload["contraseña"] || payload.password;
+  if (!username || !password) {
+    res.status(400).json({
+      error: "MISSING_FIELDS",
+      message: "Usuario y contraseña son requeridos",
+    });
+    return;
+  }
+
+  const db = await getDb();
+  const collection = db.collection(USERS_COLLECTION);
+  const userDoc = await collection.findOne({
+    $or: [{usuario: username}, {username}],
+  });
+
+  if (!userDoc) {
+    res.status(401).json({error: "INVALID_CREDENTIALS"});
+    return;
+  }
+
+  let isValid = false;
+  if (userDoc.passwordHash) {
+    isValid = await bcrypt.compare(password, userDoc.passwordHash);
+  } else if (typeof userDoc["contraseña"] === "string") {
+    isValid = userDoc["contraseña"] === password;
+  } else if (typeof userDoc.password === "string") {
+    isValid = userDoc.password === password;
+  }
+
+  if (!isValid) {
+    res.status(401).json({error: "INVALID_CREDENTIALS"});
+    return;
+  }
+
+  res.json({user: sanitizeUser(userDoc)});
+}));
+
+exports.createUser = onRequest(withCors(async (req, res) => {
+  if (req.method !== "POST") {
+    res.status(405).json({error: "METHOD_NOT_ALLOWED"});
+    return;
+  }
+
+  if (!ADMIN_SETUP_TOKEN) {
+    res.status(500).json({
+      error: "CONFIG",
+      message: "ADMIN_SETUP_TOKEN no configurado",
+    });
+    return;
+  }
+
+  const token = req.get("x-setup-token");
+  if (token !== ADMIN_SETUP_TOKEN) {
+    res.status(403).json({error: "UNAUTHORIZED"});
+    return;
+  }
+
+  const payload = normalizeBody(req.body);
+  const username = payload.usuario || payload.username;
+  const password = payload["contraseña"] || payload.password;
+  const nombre = payload.nombre || payload.name || "";
+  const rol = payload.rol || payload.role || "user";
+
+  if (!username || !password) {
+    res.status(400).json({error: "MISSING_FIELDS"});
+    return;
+  }
+
+  const db = await getDb();
+  const collection = db.collection(USERS_COLLECTION);
+  const exists = await collection.findOne({
+    $or: [{usuario: username}, {username}],
+  });
+  if (exists) {
+    res.status(409).json({error: "USER_EXISTS"});
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  const result = await collection.insertOne({
+    usuario: username,
+    passwordHash,
+    nombre,
+    rol,
+    createdAt: new Date(),
+  });
+
+  logger.info("User created", {username});
+  res.status(201).json({
+    user: sanitizeUser({
+      _id: result.insertedId,
+      usuario: username,
+      nombre,
+      rol,
+    }),
+  });
 }));
