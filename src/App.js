@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import "./App.css";
 import BrandLogo from "./components/BrandLogo";
 import Login from "./components/Login";
-import CookieBanner from "./components/CookieBanner";
 import { useAuth } from "./context/AuthContext";
 import * as XLSX from "xlsx";
 
@@ -247,7 +246,6 @@ function App() {
             Salir
           </button>
         </div>
-        <CookieBanner />
       </div>
     );
   }
@@ -401,7 +399,6 @@ function App() {
           <a href="#soporte">Soporte</a>
         </div>
       </footer>
-      <CookieBanner />
     </div>
   );
 }

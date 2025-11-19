@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import CookieBanner from "./CookieBanner";
 
 const Login = () => {
   const { login, loading, error } = useAuth();
@@ -72,6 +73,7 @@ const Login = () => {
           </button>
         </form>
       </div>
+      <CookieBanner />
     </div>
   );
 };
