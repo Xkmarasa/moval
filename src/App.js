@@ -3,6 +3,7 @@ import "./App.css";
 import BrandLogo from "./components/BrandLogo";
 import Login from "./components/Login";
 import { useAuth } from "./context/AuthContext";
+import * as XLSX from "xlsx";
 
 function App() {
   const { user, role, logout, apiBase } = useAuth();
@@ -77,6 +78,36 @@ function App() {
       </div>
     );
   }
+
+  const exportToExcel = () => {
+    if (adminRecords.length === 0) {
+      alert("No hay registros para exportar");
+      return;
+    }
+
+    // Preparar los datos para Excel
+    const excelData = adminRecords.map((record) => ({
+      Empleado: record.employee_id,
+      Fecha: record.date,
+      Entrada: record.check_in ? new Date(record.check_in).toLocaleTimeString() : "-",
+      Salida: record.check_out ? new Date(record.check_out).toLocaleTimeString() : "-",
+      Horas: record.worked_hours ?? "-",
+      Estado: record.status,
+      Notas: record.notes || "-",
+    }));
+
+    // Crear el libro de trabajo
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Historial");
+
+    // Generar el nombre del archivo con la fecha actual
+    const fecha = new Date().toISOString().split("T")[0];
+    const fileName = `historial_trabajadores_${fecha}.xlsx`;
+
+    // Descargar el archivo
+    XLSX.writeFile(workbook, fileName);
+  };
 
   const handleWorkerAction = async (action) => {
     setWorkerLoading(action);
@@ -191,7 +222,7 @@ function App() {
           </div>
           <div className="hero__session">
             <span>{user.nombre || user.usuario}</span>
-            <button type="button" className="dk-btn dk-btn--ghost" onClick={logout}>
+            <button type="button" className="dk-btn dk-btn--logout" onClick={logout}>
               Salir
             </button>
           </div>
@@ -259,8 +290,20 @@ function App() {
 
         <section className="panel">
           <div className="panel__header">
-            <h2>Historial de trabajadores</h2>
-            <p>Últimos movimientos registrados.</p>
+            <div className="panel__header-top">
+              <div>
+                <h2>Historial de trabajadores</h2>
+                <p>Últimos movimientos registrados.</p>
+              </div>
+              <button
+                type="button"
+                className="dk-btn dk-btn--export"
+                onClick={exportToExcel}
+                disabled={adminRecords.length === 0}
+              >
+                📊 Exportar Excel
+              </button>
+            </div>
           </div>
           {adminLoading && <p>Cargando registros...</p>}
           {adminError && <p className="panel__error">{adminError}</p>}

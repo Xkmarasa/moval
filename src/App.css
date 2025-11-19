@@ -134,6 +134,14 @@ body {
   background: linear-gradient(180deg, #f9fbff, #edf1f9);
 }
 
+.panel__header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .panel__header h2 {
   margin: 0;
   font-size: 1.4rem;
@@ -230,6 +238,34 @@ body {
   background: transparent;
   border: 1px solid rgba(13, 34, 66, 0.3);
   color: #0c3c7c;
+}
+
+.dk-btn--logout {
+  background: transparent;
+  border: 2px solid #ffffff;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.dk-btn--logout:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(255, 255, 255, 0.2);
+}
+
+.dk-btn--export {
+  background: #0c3c7c;
+  color: #fff;
+  border: 2px solid #0c3c7c;
+  font-size: 0.9rem;
+  padding: 0.7rem 1.2rem;
+}
+
+.dk-btn--export:hover:not(:disabled) {
+  background: #0a2f5f;
+  border-color: #0a2f5f;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(12, 60, 124, 0.25);
 }
 
 .app-footer {
