@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import "./App.css";
 import BrandLogo from "./components/BrandLogo";
 import Login from "./components/Login";
+import CookieBanner from "./components/CookieBanner";
 import { useAuth } from "./context/AuthContext";
 import * as XLSX from "xlsx";
 
@@ -9,6 +10,7 @@ function App() {
   const { user, role, logout, apiBase } = useAuth();
   const [workerLoading, setWorkerLoading] = useState(null);
   const [workerMessage, setWorkerMessage] = useState(null);
+  const [hasPendingEntry, setHasPendingEntry] = useState(false);
   const [adminRecords, setAdminRecords] = useState([]);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState(null);
@@ -71,6 +73,34 @@ function App() {
       isMounted = false;
     };
   }, [role, apiBase]);
+
+  // Verificar si el trabajador tiene una entrada pendiente
+  useEffect(() => {
+    if (role === "admin" || !user) {
+      return;
+    }
+    let isMounted = true;
+    const checkPendingEntry = async () => {
+      try {
+        const response = await fetch(`${apiBase}/listEntries?employeeId=${user.usuario}&limit=1`);
+        const data = await response.json();
+        if (response.ok && isMounted) {
+          // Verificar si hay alguna entrada sin salida
+          const pending = data.some(
+            (record) => record.check_in && !record.check_out
+          );
+          setHasPendingEntry(pending);
+        }
+      } catch (error) {
+        console.warn("Failed to check pending entry", error);
+      }
+    };
+    checkPendingEntry();
+    return () => {
+      isMounted = false;
+    };
+  }, [role, user, apiBase]);
+
   if (!user) {
     return (
       <div className="auth-screen">
@@ -110,6 +140,15 @@ function App() {
   };
 
   const handleWorkerAction = async (action) => {
+    // Validar que no haya entrada pendiente antes de registrar nueva entrada
+    if (action === "in" && hasPendingEntry) {
+      setWorkerMessage({
+        type: "error",
+        text: "Ya tienes una entrada registrada. Debes registrar la salida antes de poder registrar una nueva entrada.",
+      });
+      return;
+    }
+
     setWorkerLoading(action);
     setWorkerMessage(null);
     try {
@@ -152,6 +191,13 @@ function App() {
             ? "Entrada registrada correctamente."
             : "Salida registrada correctamente.",
       });
+      
+      // Actualizar el estado de entrada pendiente después de la acción
+      if (action === "in") {
+        setHasPendingEntry(true);
+      } else if (action === "out") {
+        setHasPendingEntry(false);
+      }
     } catch (error) {
       setWorkerMessage({
         type: "error",
@@ -177,7 +223,7 @@ function App() {
               type="button"
               className="dk-btn dk-btn--primary"
               onClick={() => handleWorkerAction("in")}
-              disabled={workerLoading === "in"}
+              disabled={workerLoading === "in" || hasPendingEntry}
             >
               {workerLoading === "in" ? "Registrando..." : "Registrar entrada"}
             </button>
@@ -201,6 +247,7 @@ function App() {
             Salir
           </button>
         </div>
+        <CookieBanner />
       </div>
     );
   }
@@ -354,6 +401,7 @@ function App() {
           <a href="#soporte">Soporte</a>
         </div>
       </footer>
+      <CookieBanner />
     </div>
   );
 }

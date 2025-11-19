@@ -1,0 +1,61 @@
+import { useState, useEffect } from "react";
+import "./CookieBanner.css";
+
+const CookieBanner = () => {
+  const [showBanner, setShowBanner] = useState(false);
+
+  useEffect(() => {
+    // Verificar si el usuario ya ha aceptado o rechazado las cookies
+    const cookieConsent = localStorage.getItem("cookie-consent");
+    if (!cookieConsent) {
+      setShowBanner(true);
+    }
+  }, []);
+
+  const handleAccept = () => {
+    localStorage.setItem("cookie-consent", "accepted");
+    setShowBanner(false);
+  };
+
+  const handleReject = () => {
+    localStorage.setItem("cookie-consent", "rejected");
+    setShowBanner(false);
+  };
+
+  if (!showBanner) {
+    return null;
+  }
+
+  return (
+    <div className="cookie-banner">
+      <div className="cookie-banner__content">
+        <div className="cookie-banner__text">
+          <h3>🍪 Uso de Cookies</h3>
+          <p>
+            Utilizamos cookies para mejorar tu experiencia, analizar el tráfico del sitio y personalizar el contenido.
+            Al continuar navegando, aceptas nuestro uso de cookies.
+          </p>
+        </div>
+        <div className="cookie-banner__actions">
+          <button
+            type="button"
+            className="cookie-banner__btn cookie-banner__btn--accept"
+            onClick={handleAccept}
+          >
+            Aceptar
+          </button>
+          <button
+            type="button"
+            className="cookie-banner__btn cookie-banner__btn--reject"
+            onClick={handleReject}
+          >
+            Rechazar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CookieBanner;
+
