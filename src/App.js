@@ -56,7 +56,11 @@ function App() {
         const response = await fetch(`${apiBase}/getStats`);
         const data = await response.json();
         if (response.ok && isMounted) {
-          setStats(data);
+          const adjustedData = {
+            ...data,
+            activeEmployees: Math.max(0, (data.activeEmployees || 0) - 1),
+          };
+          setStats(adjustedData);
         }
       } catch (error) {
         console.warn("Failed to fetch stats", error);
