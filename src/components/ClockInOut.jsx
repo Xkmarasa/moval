@@ -20,7 +20,7 @@ const formatDuration = (minutes) => {
   return `${hrs}h ${mins.toString().padStart(2, "0")}m`;
 };
 
-const ClockInOut = () => {
+const ClockInOut = ({ onConfirm }) => {
   const [entries, setEntries] = useState(() => {
     if (typeof window === "undefined") return [];
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -71,10 +71,20 @@ const ClockInOut = () => {
   };
 
   const handleReset = () => {
-    if (window.confirm("¿Eliminar todos los registros?")) {
+    const confirmAction = onConfirm
+      ? onConfirm({
+        title: "Eliminar registros",
+        message: "¿Eliminar todos los registros?",
+        confirmLabel: "Eliminar",
+        cancelLabel: "Cancelar",
+        tone: "danger",
+      })
+      : Promise.resolve(true);
+    confirmAction.then((confirmed) => {
+      if (!confirmed) return;
       setEntries([]);
       setCurrentShift(null);
-    }
+    });
   };
 
   const totalToday = useMemo(() => {

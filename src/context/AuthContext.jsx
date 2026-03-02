@@ -53,10 +53,17 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem(STORAGE_KEY);
   };
 
+  const normalizedNombre = user?.nombre?.toLowerCase();
+  const normalizedUsuario = user?.usuario?.toLowerCase();
+
   const role =
     user?.rol ||
     user?.role ||
-    (user?.nombre === "admin" || user?.usuario === "admin" ? "admin" : "user");
+    (normalizedNombre === "admin" || normalizedUsuario === "admin"
+      ? "admin"
+      : normalizedNombre === "informes" || normalizedUsuario === "informes"
+        ? "informes"
+        : "user");
 
   const value = useMemo(
       () => ({

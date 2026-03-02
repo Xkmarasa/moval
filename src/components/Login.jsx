@@ -72,6 +72,32 @@ const Login = () => {
             {loading ? "Verificando..." : "Ingresar"}
           </button>
         </form>
+        <div
+          style={{
+            marginTop: "1.25rem",
+            padding: "0.5rem 0",
+            borderRadius: "14px",
+          }}
+        >
+          <p className="eyebrow" style={{ marginBottom: "0.35rem" }}>
+            Encuesta pública
+          </p>
+          <h2 style={{ margin: 0, fontSize: "1.05rem" }}>
+            Satisfacción del cliente
+          </h2>
+          <p style={{ margin: "0.35rem 0 0.85rem", color: "#475569" }}>
+            Acceso directo sin registro para responder la encuesta.
+          </p>
+          <a
+            href="/satisfaccion_cliente.html"
+            target="_blank"
+            rel="noreferrer"
+            className="dk-btn dk-btn--secondary"
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
+          >
+            📄 Abrir encuesta
+          </a>
+        </div>
       </div>
       <CookieBanner />
     </div>
