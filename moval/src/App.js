@@ -132,7 +132,7 @@ function App() {
   const confirmAction = (options) =>
     new Promise((resolve) => {
       setConfirmDialog({
-        title: options.title || "Confirmar acciÃ³n",
+                title: options.title || "Confirmar acción",
         message: options.message,
         confirmLabel: options.confirmLabel || "Confirmar",
         cancelLabel: options.cancelLabel || "Cancelar",
@@ -152,8 +152,8 @@ function App() {
     const titleMap = {
       success: "Correcto",
       error: "Error",
-      warning: "AtenciÃ³n",
-      info: "InformaciÃ³n",
+      warning: "Atención",
+      info: "Información",
     };
     return (
       <>
@@ -169,7 +169,7 @@ function App() {
               onClick={() => setToast(null)}
               aria-label="Cerrar"
             >
-              Ã—
+              ×
             </button>
           </div>
         )}

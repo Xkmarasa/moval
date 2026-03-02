@@ -1,24 +1,18 @@
-# TODO - Reorganización Panel Admin
+# TODO: Fix Encoding Issues in App.js
 
-## Pasos a completar:
+## Status: In Progress
 
-### 1. Reorganizar orden de secciones en App.js
-- [ ] Mover "Historial de trabajadores" al primer lugar
-- [ ] Mover "Gestión de informes" al segundo lugar  
-- [ ] Mover "Gestión limpieza planta" al tercer lugar
-- [ ] Mover "Control semanal" al cuarto lugar
-- [ ] Mover "Registros pendientes" al final (quinto lugar)
+### Fixes to Apply:
 
-### 2. Ajustar tamaños de tablas
-- [ ] Historial de trabajadores: maxHeight 500px
-- [ ] Gestión de informes: ajustar según contenido
-- [ ] Gestión limpieza planta: maxHeight 400px
-- [ ] Control semanal: mantener actual
-- [ ] Registros pendientes: maxHeight 300px
+1. [x] Read and analyze App.js encoding issues
+2. [ ] Fix BOM at start of file
+3. [ ] Fix toast/dialog strings (Confirmar acción, AtenciÃ³n, InformaciÃ³n, ×)
+4. [ ] Fix function comments (automÃ¡ticamente, lÃ­mites, funciÃ³n, EstÃ¡s seguro)
+5. [ ] Fix emoji characters in buttons (ðŸ"Š → 📊, etc.)
+6. [ ] Fix Excel export headers with special characters
+7. [ ] Verify ReportsManagement.jsx encoding
 
-### 3. Incluir borradores en Registros pendientes
-- [ ] Añadir lógica para mostrar informes de libro_visitas en borrador
-- [ ] Añadir lógica para mostrar informes de peso_producto en borrador
-- [ ] Mostrar todos los registros temporales sin acabar
-
-## Estado: En progreso
+## Notes:
+- The file was likely saved with wrong encoding (UTF-8 interpreted as Windows-1252 or similar)
+- Many Spanish characters are showing as garbled text
+- Emojis are displaying incorrectly
