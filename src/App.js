@@ -2537,6 +2537,181 @@ function App() {
       </header>
 
       <main className="dashboard">
+        {/* Historial de trabajadores - Primera sección */}
+        <section className="panel">
+          <div className="panel__header">
+            <div className="panel__header-top">
+              <div>
+                <h2>Historial de trabajadores</h2>
+                <p>Últimos movimientos registrados.</p>
+              </div>
+              <button
+                type="button"
+                className="dk-btn dk-btn--export"
+                onClick={exportToExcel}
+                disabled={adminRecords.length === 0}
+              >
+                📊 Exportar Excel
+              </button>
+            </div>
+          </div>
+          {adminLoading && <p>Cargando registros...</p>}
+          {adminError && <p className="panel__error">{adminError}</p>}
+          {!adminLoading && !adminError && (
+            <>
+              {adminRecords.length > 0 && (
+                <div style={{ 
+                  marginBottom: "1rem", 
+                  padding: "1rem", 
+                  backgroundColor: "#f8fafc", 
+                  borderRadius: "12px",
+                  border: "2px solid #e6eaf3",
+                  display: "flex",
+                  gap: "0.75rem",
+                  flexWrap: "wrap",
+                  alignItems: "center"
+                }}>
+                  <span style={{ fontWeight: "700", color: "#0c3c7c", fontSize: "0.95rem", marginRight: "0.5rem" }}>⚡ Acciones rápidas:</span>
+                  <button
+                    type="button"
+                    className="dk-btn dk-btn--primary"
+                    style={{ padding: "0.6rem 1.2rem", fontSize: "0.9rem" }}
+                    onClick={() => { if (adminRecords.length > 0) setEditingRecord(adminRecords[0]); }}
+                    disabled={adminRecords.length === 0}
+                  >
+                    ✏️ Editar primer registro
+                  </button>
+                  <span style={{ color: "#64748b", fontSize: "0.85rem", fontStyle: "italic" }}>
+                    (Usa los botones en cada fila para acciones específicas)
+                  </span>
+                </div>
+              )}
+              <div className="records-table-wrapper" style={{ maxHeight: "600px", overflowY: "auto" }}>
+                <table className="records-table">
+                  <thead>
+                    <tr>
+                      <th>Empleado</th><th>Fecha</th><th>Entrada</th><th>Salida</th><th>Horas</th><th>Estado</th>
+                      <th style={{ minWidth: "200px" }}>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {completedRecords.length === 0 ? (
+                      <tr><td colSpan="7">No hay registros recientes.</td></tr>
+                    ) : (
+                      completedRecords.slice(0, historyRecordsLimit).map((record) => (
+                        <tr key={record.id}>
+                          <td>{record.employee_id}</td><td>{record.date}</td>
+                          <td>{record.check_in ? new Date(record.check_in).toLocaleTimeString() : "-"}</td>
+                          <td>{record.check_out ? new Date(record.check_out).toLocaleTimeString() : "-"}</td>
+                          <td>{record.worked_hours ?? "-"}</td><td>{record.status}</td>
+                          <td>
+                            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "nowrap" }}>
+                              <button type="button" className="dk-btn dk-btn--ghost" style={{ padding: "0.5rem 1rem", fontSize: "0.85rem", minWidth: "85px", backgroundColor: "#ffffff", border: "2px solid rgba(13, 34, 66, 0.3)", fontWeight: "600" }} onClick={() => setEditingRecord(record)}>✏️ Editar</button>
+                              <button type="button" className="dk-btn dk-btn--ghost" style={{ padding: "0.5rem 1rem", fontSize: "0.85rem", color: "#c62828", borderColor: "#c62828", borderWidth: "2px", minWidth: "85px", backgroundColor: "#ffffff", fontWeight: "600" }} onClick={() => setDeletingRecordId(record.id)}>🗑️ Eliminar</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </section>
+
+        {/* Gestión de Informes - Segunda sección */}
+        <section className="panel">
+          <div className="panel__header">
+            <h2>Gestión de Informes</h2>
+            <p>Visualiza, edita, elimina y exporta todos los informes.</p>
+          </div>
+          <div style={{ marginBottom: "1.5rem" }}>
+            <label htmlFor="admin-report-select" style={{ display: "block", marginBottom: "0.5rem", color: "#475569" }}>Selecciona el informe</label>
+            <select id="admin-report-select" value={activeTab || ""} onChange={(e) => { setActiveTab(e.target.value); fetchReportsByType(e.target.value); }} style={{ width: "100%", maxWidth: "360px", padding: "0.65rem 0.9rem", borderRadius: "10px", border: "1px solid #e2e8f0", background: "#ffffff", color: "#0f172a", fontWeight: 500 }}>
+              <option value="" disabled>Selecciona...</option>
+              {reportTabs.map((tab) => (<option key={tab.id} value={tab.id}>{tab.label}</option>))}
+            </select>
+          </div>
+          {reportsLoading && <p>Cargando informes...</p>}
+          {reportsError && <div className="panel__error"><p>Error al cargar informes: {reportsError}</p><button type="button" className="dk-btn dk-btn--ghost" onClick={() => fetchReportsByType(activeTab)} style={{ marginTop: "0.5rem" }}>Reintentar</button></div>}
+          {!reportsLoading && !reportsError && renderReportsTable()}
+        </section>
+
+        {/* Gestión de Limpieza Planta - Tercera sección */}
+        <section className="panel" style={{ border: "2px solid #012b5c", backgroundColor: "#f8fafc" }}>
+          <div className="panel__header">
+            <h2 style={{ color: "#012b5c", fontSize: "1.5rem" }}>🏭 Gestión de Limpieza Planta</h2>
+            <p>Visualiza, edita y elimina informes de limpieza organizados por zonas.</p>
+          </div>
+          <div style={{ marginBottom: "1.5rem", display: "flex", gap: "1rem", alignItems: "flex-end", flexWrap: "wrap", padding: "1rem", backgroundColor: "#ffffff", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+            <div>
+              <label htmlFor="limpieza-planta-zona-filter" style={{ display: "block", marginBottom: "0.5rem", color: "#475569", fontWeight: "600" }}>Filtrar por zona</label>
+              <select id="limpieza-planta-zona-filter" value={limpiezaPlantaZonaFilter} onChange={(e) => setLimpiezaPlantaZonaFilter(e.target.value)} style={{ padding: "0.65rem 0.9rem", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#ffffff", color: "#0f172a", fontWeight: 500, minWidth: "200px" }}>
+                <option value="TODAS">Todas las zonas</option>
+                {LIMPIEZA_PLANTA_ZONAS.map((zona) => (<option key={zona.id} value={zona.id}>{zona.nombre}</option>))}
+              </select>
+            </div>
+            <div>
+              <button type="button" className="dk-btn dk-btn--export" onClick={() => {
+                const reportsToExport = limpiezaPlantaZonaFilter === "TODAS" ? cleaningPlantReports : cleaningPlantReports.filter(r => (r.zonaNombre || r.zona) === limpiezaPlantaZonaFilter || LIMPIEZA_PLANTA_ZONAS.find(z => z.id === limpiezaPlantaZonaFilter)?.nombre === (r.zonaNombre || r.zona));
+                if (reportsToExport.length === 0) { notify("warning", "No hay informes para exportar."); return; }
+                const dataForExcel = reportsToExport.map((report) => ({ Empleado: getEmployeeName(report), Fecha: report.fecha, Hora: report.hora, Zona: (report.zonaNombre || report.zona) ?? "", Periodo: report.periodo || "SEMANAL", LimpiezaCompletada: report.limpiezaCompletada ? "Sí" : "No", FirmaDropbox: report.firmaInfo?.sharedLink || "" }));
+                const ws = XLSX.utils.json_to_sheet(dataForExcel); applyHeaderStyle(ws); const wb = XLSX.utils.book_new(); const zonaNombre = limpiezaPlantaZonaFilter === "TODAS" ? "todas_las_zonas" : LIMPIEZA_PLANTA_ZONAS.find(z => z.id === limpiezaPlantaZonaFilter)?.nombre || limpiezaPlantaZonaFilter;
+                XLSX.utils.book_append_sheet(wb, ws, "Limpieza Planta"); XLSX.writeFile(wb, `informe_limpieza_${zonaNombre}_${new Date().toISOString().split("T")[0]}.xlsx`); notify("success", `Exportado: ${reportsToExport.length} registro(s)`);
+              }} style={{ backgroundColor: "#012b5c", borderColor: "#012b5c" }}>📊 Exportar Excel</button>
+            </div>
+            <div style={{ marginLeft: "auto", color: "#64748b", fontSize: "0.9rem" }}>Mostrando: {limpiezaPlantaZonaFilter === "TODAS" ? `${cleaningPlantReports.length} informes` : `${cleaningPlantReports.filter(r => (r.zonaNombre || r.zona) === limpiezaPlantaZonaFilter || LIMPIEZA_PLANTA_ZONAS.find(z => z.id === limpiezaPlantaZonaFilter)?.nombre === (r.zonaNombre || r.zona)).length} informe(s)`}</div>
+          </div>
+          {reportsLoading && <p>Cargando informes de limpieza...</p>}
+          {reportsError && <div className="panel__error"><p>Error: {reportsError}</p><button type="button" className="dk-btn dk-btn--ghost" onClick={() => fetchReportsByType("limpieza_planta")}>Reintentar</button></div>}
+          {!reportsLoading && !reportsError && cleaningPlantReports.length > 0 && (
+            <div className="records-table-wrapper">
+              <table className="records-table">
+                <thead><tr><th>Empleado</th><th>Fecha</th><th>Hora</th><th>Zona</th><th>Periodo</th><th>Completada</th><th style={{ minWidth: "250px" }}>Acciones</th></tr></thead>
+                <tbody>
+                  {(limpiezaPlantaZonaFilter === "TODAS" ? cleaningPlantReports : cleaningPlantReports.filter(r => (r.zonaNombre || r.zona) === limpiezaPlantaZonaFilter || LIMPIEZA_PLANTA_ZONAS.find(z => z.id === limpiezaPlantaZonaFilter)?.nombre === (r.zonaNombre || r.zona))).map((report) => (
+                    <tr key={report.id}>
+                      <td>{report.employee_id}</td><td>{report.fecha}</td><td>{report.hora}</td><td>{report.zonaNombre || report.zona || "-"}</td><td>{report.periodo || "SEMANAL"}</td>
+                      <td><span style={{ color: report.limpiezaCompletada ? "#10b981" : "#ef4444", fontWeight: "600" }}>{report.limpiezaCompletada ? "✅ Sí" : "❌ No"}</span></td>
+                      <td>
+                        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                          <button type="button" className="dk-btn dk-btn--ghost" style={{ padding: "0.5rem 1rem", fontSize: "0.85rem", minWidth: "85px", backgroundColor: "#ffffff", border: "2px solid rgba(13, 34, 66, 0.3)", fontWeight: "600" }} onClick={() => { setSelectedReport(report); setSelectedReportType("limpieza_planta"); }}>👁️ Ver</button>
+                          <button type="button" className="dk-btn dk-btn--ghost" style={{ padding: "0.5rem 1rem", fontSize: "0.85rem", minWidth: "85px", backgroundColor: "#ffffff", border: "2px solid rgba(13, 34, 66, 0.3)", fontWeight: "600" }} onClick={() => setEditingCleaningPlantReport(report)}>✏️ Editar</button>
+                          <button type="button" className="dk-btn dk-btn--ghost" style={{ padding: "0.5rem 1rem", fontSize: "0.85rem", color: "#c62828", borderColor: "#c62828", borderWidth: "2px", minWidth: "85px", backgroundColor: "#ffffff", fontWeight: "600" }} onClick={() => { setDeletingReportId(report.id); setDeletingReportType("limpieza_planta"); }}>🗑️ Eliminar</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        {/* Control semanal - Cuarta sección */}
+        <section className="panel">
+          <div className="panel__header">
+            <h2>Control semanal</h2>
+            <p>Recuento semanal de informes y desviaciones.</p>
+          </div>
+          <div style={{ marginBottom: "1rem", display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
+            <button type="button" className="dk-btn dk-btn--primary" onClick={() => setShowWeeklyExportModal(true)} style={{ padding: "0.5rem 1rem" }} disabled={weeklySummaryLoading || weeklySummaryRows.length === 0}>📊 Exportar control semanal</button>
+            <button type="button" className="dk-btn dk-btn--ghost" onClick={fetchWeeklySummary} style={{ padding: "0.5rem 1rem" }} disabled={weeklySummaryLoading}>{weeklySummaryLoading ? "Actualizando..." : "Actualizar"}</button>
+            {weeklySummaryMeta && <span style={{ color: "#64748b", fontSize: "0.9rem" }}>Semana: {formatDate(weeklySummaryMeta.start)} – {formatDate(weeklySummaryMeta.end)}</span>}
+          </div>
+          {weeklySummaryError && <div className="panel__error"><p>Error: {weeklySummaryError}</p></div>}
+          {!weeklySummaryLoading && !weeklySummaryError && weeklySummaryRows.length > 0 && (
+            <div className="records-table-wrapper">
+              <table className="records-table">
+                <thead><tr><th>Área controlada</th><th>Registros real</th><th>Desviaciones</th><th>Estado</th></tr></thead>
+                <tbody>{weeklySummaryRows.map((row) => (<tr key={row.area}><td>{row.area}</td><td>{row.registros}</td><td>{row.desviaciones.count}</td><td>{row.desviaciones.count > 0 ? "NO CONFORME" : "CONFORME"}</td></tr>))}</tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        {/* Registros pendientes - Quinta sección */}
         <section className="panel">
           <div className="panel__header">
             <h2>Registros pendientes</h2>
@@ -2809,7 +2984,17 @@ function App() {
           </div>
 
           {/* Filtro por zona */}
-          <div style={{ marginBottom: "1.5rem", display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ 
+            marginBottom: "1.5rem", 
+            display: "flex", 
+            gap: "1rem", 
+            alignItems: "flex-end", 
+            flexWrap: "wrap",
+            padding: "1rem",
+            backgroundColor: "#ffffff",
+            borderRadius: "12px",
+            border: "1px solid #e2e8f0"
+          }}>
             <div>
               <label htmlFor="limpieza-planta-zona-filter" style={{ display: "block", marginBottom: "0.5rem", color: "#475569", fontWeight: "600" }}>
                 Filtrar por zona
@@ -2836,18 +3021,54 @@ function App() {
                 ))}
               </select>
             </div>
-            <div style={{ marginTop: "1.5rem" }}>
+            <div>
               <button
                 type="button"
                 className="dk-btn dk-btn--export"
                 onClick={() => {
-                  setActiveTab("limpieza_planta");
-                  // Los datos ya están cargados automáticamente
+                  // Exportar solo los informes de la zona seleccionada
+                  const reportsToExport = limpiezaPlantaZonaFilter === "TODAS"
+                    ? cleaningPlantReports
+                    : cleaningPlantReports.filter(report =>
+                        (report.zonaNombre || report.zona) === limpiezaPlantaZonaFilter ||
+                        LIMPIEZA_PLANTA_ZONAS.find(z => z.id === limpiezaPlantaZonaFilter)?.nombre === (report.zonaNombre || report.zona)
+                      );
+                  
+                  if (reportsToExport.length === 0) {
+                    notify("warning", "No hay informes para exportar con el filtro actual.");
+                    return;
+                  }
+                  
+                  const dataForExcel = reportsToExport.map((report) => ({
+                    Empleado: getEmployeeName(report),
+                    Fecha: report.fecha,
+                    Hora: report.hora,
+                    Zona: (report.zonaNombre || report.zona) ?? "",
+                    Periodo: report.periodo || "SEMANAL",
+                    LimpiezaCompletada: report.limpiezaCompletada ? "Sí" : "No",
+                    FirmaDropbox: report.firmaInfo?.sharedLink || "",
+                  }));
+
+                  const ws = XLSX.utils.json_to_sheet(dataForExcel);
+                  applyHeaderStyle(ws);
+                  const wb = XLSX.utils.book_new();
+                  const zonaNombre = limpiezaPlantaZonaFilter === "TODAS" ? "todas_las_zonas" : LIMPIEZA_PLANTA_ZONAS.find(z => z.id === limpiezaPlantaZonaFilter)?.nombre || limpiezaPlantaZonaFilter;
+                  XLSX.utils.book_append_sheet(wb, ws, "Limpieza Planta");
+                  XLSX.writeFile(wb, `informe_limpieza_${zonaNombre}_${new Date().toISOString().split("T")[0]}.xlsx`);
+                  notify("success", `Informe exportado: ${reportsToExport.length} registro(s)`);
                 }}
                 style={{ backgroundColor: "#012b5c", borderColor: "#012b5c" }}
               >
                 📊 Exportar Excel
               </button>
+            </div>
+            <div style={{ marginLeft: "auto", color: "#64748b", fontSize: "0.9rem" }}>
+              Mostrando: {limpiezaPlantaZonaFilter === "TODAS" 
+                ? `${cleaningPlantReports.length} informes` 
+                : `${cleaningPlantReports.filter(r => 
+                    (r.zonaNombre || r.zona) === limpiezaPlantaZonaFilter ||
+                    LIMPIEZA_PLANTA_ZONAS.find(z => z.id === limpiezaPlantaZonaFilter)?.nombre === (r.zonaNombre || r.zona)
+                  ).length} informe(s)`}
             </div>
           </div>
 
