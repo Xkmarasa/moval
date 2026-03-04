@@ -4,10 +4,10 @@ const {onRequest} = require("firebase-functions/v2/https");
 const {withCors, normalizeBody} = require("../utils");
 const {getDb} = require("../database");
 const {deleteDropboxFileIfExists, uploadFormularioSignatureFromDataUrl} = require("../dropbox");
-const {SATISFACTION_FORMS_COLLECTION} = require("../config");
+const {SATISFACTION_FORMS_COLLECTION, dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret} = require("../config");
 const {ObjectId} = require("mongodb");
 
-exports.createCustomerSatisfactionForm = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.createCustomerSatisfactionForm = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   const payload = normalizeBody(req.body);
   const {cliente, canal, fecha, firmaNombreCliente, firmaImagenBase64} = payload;
@@ -47,7 +47,7 @@ exports.updateCustomerSatisfactionForm = onRequest(withCors(async (req, res) => 
   res.json({success: true});
 }));
 
-exports.deleteCustomerSatisfactionForm = onRequest(withCors(async (req, res) => {
+exports.deleteCustomerSatisfactionForm = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "DELETE") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   const {id} = req.query;
   const db = await getDb();

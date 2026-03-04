@@ -4,7 +4,7 @@ const {onRequest} = require("firebase-functions/v2/https");
 const {withCors, setCorsHeaders, normalizeBody} = require("../utils");
 const {getDb} = require("../database");
 const {deleteDropboxFileIfExists, uploadFormularioSignatureFromDataUrl, ensureSharedLink} = require("../dropbox");
-const {WITNESS_REPORTS_COLLECTION} = require("../config");
+const {WITNESS_REPORTS_COLLECTION, dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret} = require("../config");
 const logger = require("firebase-functions/logger");
 const {ObjectId} = require("mongodb");
 
@@ -19,7 +19,7 @@ const normalizeWitnessTypes = (value) => {
   return [];
 };
 
-exports.createWitnessReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.createWitnessReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "POST") {
     res.status(405).json({error: "METHOD_NOT_ALLOWED"});
     return;
@@ -85,7 +85,7 @@ Fecha de creación: ${now.toISOString()}`;
   res.status(201).json({id: result.insertedId, success: true});
 }));
 
-exports.listWitnessReports = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.listWitnessReports = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   const {limit = "200", employeeId} = req.query;
   const numericLimit = Math.min(parseInt(limit, 10) || 200, 1000);
 
@@ -109,7 +109,7 @@ exports.listWitnessReports = onRequest({secrets: []}, withCors(async (req, res) 
   res.json(enriched);
 }));
 
-exports.deleteWitnessReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.deleteWitnessReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "DELETE") {
     res.status(405).json({error: "METHOD_NOT_ALLOWED"});
     return;

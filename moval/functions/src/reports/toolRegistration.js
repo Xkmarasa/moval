@@ -4,7 +4,7 @@ const {onRequest} = require("firebase-functions/v2/https");
 const {withCors, normalizeBody} = require("../utils");
 const {getDb} = require("../database");
 const {deleteDropboxFileIfExists, uploadToolSignatureFromDataUrl, uploadToolImageFromBuffer} = require("../dropbox");
-const {TOOLS_COLLECTION} = require("../config");
+const {TOOLS_COLLECTION, dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret} = require("../config");
 const {ObjectId} = require("mongodb");
 const logger = require("firebase-functions/logger");
 
@@ -48,10 +48,17 @@ function getFile(body, fieldName) {
   return null;
 }
 
-exports.createToolReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.createToolReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   
   const payload = normalizeBody(req.body);
+  
+  // Debug: log the payload keys
+  logger.info("ToolRegistration payload received", { 
+    keys: Object.keys(payload),
+    bodyType: typeof req.body,
+    bodyKeys: req.body ? Object.keys(req.body) : 'no body'
+  });
   
   // Obtener employee_id de varias fuentes posibles (usando getField para FormData)
   const employeeId = getField(payload, "employee_id") || getField(payload, "employeeId") || getField(payload, "usuario");
@@ -61,8 +68,23 @@ exports.createToolReport = onRequest({secrets: []}, withCors(async (req, res) =>
   const hora = getField(payload, "hora");
   const tipoRegistro = getField(payload, "tipoRegistro");
   
+  // Debug: log extracted values
+  logger.info("ToolRegistration extracted fields", {
+    employeeId,
+    fecha,
+    hora,
+    tipoRegistro
+  });
+  
   // Validar campos requeridos
   if (!employeeId || !fecha || !hora || !tipoRegistro) {
+    logger.error("ToolRegistration missing fields", {
+      hasEmployeeId: !!employeeId,
+      hasFecha: !!fecha,
+      hasHora: !!hora,
+      hasTipoRegistro: !!tipoRegistro,
+      payloadFields: Object.keys(payload)
+    });
     res.status(400).json({error: "MISSING_FIELDS", message: "Faltan campos requeridos: employee_id, fecha, hora, tipoRegistro"});
     return;
   }
@@ -139,49 +161,27 @@ exports.createToolReport = onRequest({secrets: []}, withCors(async (req, res) =>
 
   // Manejar las fotos
   const fotosInfo = [];
-  
-  // Procesar fotos individuales (foto1, foto2, etc.)
-  const fotoFields = ["fotos", "foto1", "foto2", "foto3", "foto4", "foto5"];
-  
-  for (const field of fotoFields) {
-    const fotoFile = getFile(payload, field);
-    if (fotoFile) {
-      try {
-        let base64Data;
-        let contentType;
-        let fileName;
-        
-        if (typeof fotoFile === "string") {
-          const matches = fotoFile.match(/^data:([^;]+);base64,(.+)$/);
-          if (matches) {
-            contentType = matches[1];
-            base64Data = matches[2];
-          } else {
-            base64Data = fotoFile;
-            contentType = "image/jpeg";
-          }
-        } else {
-          base64Data = bufferToBase64(fotoFile.data);
-          contentType = fotoFile.contentType || "image/jpeg";
-        }
-        
-        fileName = `${fecha}_${field}_${now.getTime()}.jpg`;
-        
-        if (base64Data) {
+
+  // Procesar el array de fotos que viene del frontend
+  if (payload.fotos && Array.isArray(payload.fotos)) {
+    for (let i = 0; i < payload.fotos.length; i++) {
+      const fotoItem = payload.fotos[i];
+      if (fotoItem && typeof fotoItem === "string" && fotoItem.startsWith("data:")) {
+        try {
+          const fileName = `${fecha}_foto_${i}_${now.getTime()}.jpg`;
+          const base64Data = fotoItem.split(",")[1];
           const buffer = Buffer.from(base64Data, "base64");
-          // Usar la función específica para imágenes de Tool Registration
           const result = await uploadToolImageFromBuffer(buffer, fileName, tipoRegistro, kit);
           fotosInfo.push({uploaded: true, name: fileName, dropboxPath: result.path_display, sharedLink: result.sharedLink});
-          logger.info(`Foto ${field} subida correctamente`, { dropboxPath: result.path_display });
+          logger.info(`Foto array ${i} subida correctamente`, { dropboxPath: result.path_display });
+        } catch (e) {
+          logger.error(`Error subiendo foto array ${i}`, { error: e.message });
         }
-      } catch (e) {
-        logger.error(`Error subiendo foto ${field}`, { error: e.message });
-        fotosInfo.push({uploaded: false, field: field, error: e.message});
       }
     }
   }
   
-  // También procesar arrays de fotos si vienen así
+  // También procesar arrays de fotos si vienen así (compatibilidad)
   if (payload.fotosArray && Array.isArray(payload.fotosArray)) {
     for (let i = 0; i < payload.fotosArray.length; i++) {
       const fotoItem = payload.fotosArray[i];
@@ -196,6 +196,47 @@ exports.createToolReport = onRequest({secrets: []}, withCors(async (req, res) =>
         } catch (e) {
           logger.error(`Error subiendo foto array ${i}`, { error: e.message });
         }
+      }
+    }
+  }
+
+  // Procesar fotos individuales (foto1, foto2, etc.) - para compatibilidad
+  const fotoFields = ["fotos", "foto1", "foto2", "foto3", "foto4", "foto5"];
+  
+  for (const field of fotoFields) {
+    const fotoFile = getFile(payload, field);
+    if (fotoFile) {
+      try {
+        let base64Data;
+        let contentType;
+        let fileName;
+
+        if (typeof fotoFile === "string") {
+          const matches = fotoFile.match(/^data:([^;]+);base64,(.+)$/);
+          if (matches) {
+            contentType = matches[1];
+            base64Data = matches[2];
+          } else {
+            base64Data = fotoFile;
+            contentType = "image/jpeg";
+          }
+        } else {
+          base64Data = bufferToBase64(fotoFile.data);
+          contentType = fotoFile.contentType || "image/jpeg";
+        }
+
+        fileName = `${fecha}_${field}_${now.getTime()}.jpg`;
+
+        if (base64Data) {
+          const buffer = Buffer.from(base64Data, "base64");
+          // Usar la función específica para imágenes de Tool Registration
+          const result = await uploadToolImageFromBuffer(buffer, fileName, tipoRegistro, kit);
+          fotosInfo.push({uploaded: true, name: fileName, dropboxPath: result.path_display, sharedLink: result.sharedLink});
+          logger.info(`Foto ${field} subida correctamente`, { dropboxPath: result.path_display });
+        }
+      } catch (e) {
+        logger.error(`Error subiendo foto ${field}`, { error: e.message });
+        fotosInfo.push({uploaded: false, field: field, error: e.message});
       }
     }
   }
@@ -276,7 +317,7 @@ exports.updateToolReport = onRequest(withCors(async (req, res) => {
   res.json({success: true});
 }));
 
-exports.deleteToolReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.deleteToolReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "DELETE") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   const {id} = req.query;
   const db = await getDb();

@@ -4,11 +4,11 @@ const {onRequest} = require("firebase-functions/v2/https");
 const {withCors, normalizeBody} = require("../utils");
 const {getDb} = require("../database");
 const {deleteDropboxFileIfExists, uploadFormularioSignatureFromDataUrl, ensureSharedLink} = require("../dropbox");
-const {CLEANING_REPORTS_COLLECTION} = require("../config");
+const {CLEANING_REPORTS_COLLECTION, dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret} = require("../config");
 const logger = require("firebase-functions/logger");
 const {ObjectId} = require("mongodb");
 
-exports.createCleaningReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.createCleaningReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   const payload = normalizeBody(req.body);
   const employeeId = payload.employee_id || payload.employeeId || payload.usuario;
@@ -38,7 +38,7 @@ exports.createCleaningReport = onRequest({secrets: []}, withCors(async (req, res
   res.status(201).json({id: result.insertedId, success: true});
 }));
 
-exports.listCleaningReports = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.listCleaningReports = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   const db = await getDb();
   const reports = await db.collection(CLEANING_REPORTS_COLLECTION).find({}).sort({createdAt: -1}).limit(200).toArray();
   const enriched = await Promise.all(reports.map(async (r) => ({
@@ -62,7 +62,7 @@ exports.updateCleaningReport = onRequest(withCors(async (req, res) => {
   res.json({success: true});
 }));
 
-exports.deleteCleaningReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.deleteCleaningReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "DELETE") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   const {id} = req.query;
   const db = await getDb();

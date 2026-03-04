@@ -4,11 +4,11 @@ const {onRequest} = require("firebase-functions/v2/https");
 const {withCors, normalizeBody} = require("../utils");
 const {getDb} = require("../database");
 const {deleteDropboxFileIfExists, uploadFormularioSignatureFromDataUrl, ensureSharedLink} = require("../dropbox");
-const {RECEPTION_EXIT_COLLECTION} = require("../config");
+const {RECEPTION_EXIT_COLLECTION, dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret} = require("../config");
 const logger = require("firebase-functions/logger");
 const {ObjectId} = require("mongodb");
 
-exports.createReceptionExitReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.createReceptionExitReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   const payload = normalizeBody(req.body);
   const employeeId = payload.employee_id || payload.employeeId || payload.usuario;
@@ -50,7 +50,7 @@ Aceptado: ${payload.aceptado}`;
   res.status(201).json({id: result.insertedId, success: true});
 }));
 
-exports.listReceptionExitReports = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.listReceptionExitReports = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   const {limit = "200", employeeId} = req.query;
   const db = await getDb();
   const collection = db.collection(RECEPTION_EXIT_COLLECTION);
@@ -63,7 +63,7 @@ exports.listReceptionExitReports = onRequest({secrets: []}, withCors(async (req,
   res.json(enriched);
 }));
 
-exports.deleteReceptionExitReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.deleteReceptionExitReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "DELETE") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   const {id} = req.query;
   if (!id) { res.status(400).json({error: "ID_REQUIRED"}); return; }

@@ -320,45 +320,56 @@ const ToolRegistration = ({ onClose, user, apiBase, onNotify }) => {
 
     setIsSubmitting(true);
     
-    // Preparar los datos para enviar
-    // Preparar FormData para enviar las fotos
-    const formDataToSend = new FormData();
-    formDataToSend.append("employee_id", user?.usuario || user?.employee_id);
-    formDataToSend.append("fecha", formData.fecha);
-    formDataToSend.append("hora", formData.hora);
-    formDataToSend.append("tipoRegistro", formData.tipoRegistro);
-    if (formData.empresaTecnico) {
-      formDataToSend.append("empresaTecnico", formData.empresaTecnico);
-    }
-    if (formData.kit) {
-      formDataToSend.append("kit", formData.kit);
-    }
-    formDataToSend.append("checklistEntrada", formData.checklistEntrada);
-    formDataToSend.append("checklistSalida", formData.checklistSalida);
-    formDataToSend.append("noConformidad", formData.noConformidad);
-    
-    // Añadir fotos
-    formData.fotos.forEach((foto, index) => {
-      formDataToSend.append(`fotos`, foto);
-    });
-    
-    // Añadir firma si existe
-    if (formData.firma) {
-      formDataToSend.append("firma", formData.firma);
-    }
-    if (formData.firmaNombreEmpleado) {
-      formDataToSend.append("firmaNombreEmpleado", formData.firmaNombreEmpleado);
-    }
-
-    // Añadir timeout de 60 segundos
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    // Función para convertir archivo a base64
+    const fileToBase64 = (file) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    };
 
     try {
+      // Convertir imágenes a base64
+      const fotosBase64 = await Promise.all(
+        formData.fotos.map(async (foto) => {
+          return await fileToBase64(foto);
+        })
+      );
+
+      // Convertir firma a base64 si existe
+      let firmaBase64 = null;
+      if (formData.firma) {
+        firmaBase64 = await fileToBase64(formData.firma);
+      }
+
+      // Preparar los datos como JSON
+      const dataToSend = {
+        employee_id: user?.usuario || user?.employee_id,
+        fecha: formData.fecha,
+        hora: formData.hora,
+        tipoRegistro: formData.tipoRegistro,
+        empresaTecnico: formData.empresaTecnico || "",
+        kit: formData.kit || "",
+        checklistEntrada: formData.checklistEntrada,
+        checklistSalida: formData.checklistSalida,
+        noConformidad: formData.noConformidad,
+        firmaNombreEmpleado: formData.firmaNombreEmpleado,
+        firmaImagenBase64: firmaBase64,
+        fotos: fotosBase64,
+      };
+
+      // Añadir timeout de 60 segundos
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+
       const response = await fetch(`${apiBase}/createToolReport`, {
         method: "POST",
-        // No establecer Content-Type, el navegador lo hará automáticamente con FormData
-        body: formDataToSend,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(dataToSend),
         signal: controller.signal,
       });
 
@@ -388,7 +399,6 @@ const ToolRegistration = ({ onClose, user, apiBase, onNotify }) => {
       notify("success", "Formulario enviado correctamente. El informe ha sido guardado en la base de datos.");
       onClose();
     } catch (error) {
-      clearTimeout(timeoutId);
       if (error.name === "AbortError") {
         notify("error", "La petición tardó demasiado tiempo. Por favor, verifique su conexión e intente nuevamente.");
       } else if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {

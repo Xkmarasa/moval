@@ -4,12 +4,12 @@ const {onRequest} = require("firebase-functions/v2/https");
 const {withCors, normalizeBody} = require("../utils");
 const {getDb} = require("../database");
 const {deleteDropboxFileIfExists, uploadFormularioSignatureFromDataUrl, ensureSharedLink} = require("../dropbox");
-const {CONTROL_AGUA_DIARIO_COLLECTION, CONTROL_AGUA_SEMANAL_COLLECTION, CONTROL_AGUA_MENSUAL_COLLECTION, CONTROL_AGUA_TRIMESTRAL_COLLECTION} = require("../config");
+const {CONTROL_AGUA_DIARIO_COLLECTION, CONTROL_AGUA_SEMANAL_COLLECTION, CONTROL_AGUA_MENSUAL_COLLECTION, CONTROL_AGUA_TRIMESTRAL_COLLECTION, dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret} = require("../config");
 const logger = require("firebase-functions/logger");
 const {ObjectId} = require("mongodb");
 
 // Reporte Diario
-exports.createControlAguaDiarioReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.createControlAguaDiarioReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   const payload = normalizeBody(req.body);
   const employeeId = payload.employee_id || payload.employeeId || payload.usuario;
@@ -42,7 +42,7 @@ exports.listControlAguaDiarioReports = onRequest({secrets: []}, withCors(async (
   res.json(reports.map(r => ({id: r._id, fecha: r.fecha, hora: r.hora, temperaturaCalentador: r.temperaturaCalentador, cloroDeposito: r.cloroDeposito, phDeposito: r.phDeposito})));
 }));
 
-exports.deleteControlAguaDiarioReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.deleteControlAguaDiarioReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "DELETE") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   const {id} = req.query;
   const db = await getDb();
@@ -69,7 +69,7 @@ exports.updateControlAguaDiarioReport = onRequest(withCors(async (req, res) => {
 }));
 
 // Reporte Semanal
-exports.createControlAguaSemanalReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.createControlAguaSemanalReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   const payload = normalizeBody(req.body);
   const employeeId = payload.employee_id || payload.employeeId || payload.usuario;
@@ -97,7 +97,7 @@ exports.listControlAguaSemanalReports = onRequest({secrets: []}, withCors(async 
   res.json(reports);
 }));
 
-exports.deleteControlAguaSemanalReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.deleteControlAguaSemanalReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   const {id} = req.query;
   const db = await getDb();
   const existing = await db.collection(CONTROL_AGUA_SEMANAL_COLLECTION).findOne({_id: new ObjectId(id)});
@@ -122,7 +122,7 @@ exports.updateControlAguaSemanalReport = onRequest(withCors(async (req, res) => 
 }));
 
 // Reporte Mensual
-exports.createControlAguaMensualReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.createControlAguaMensualReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   const payload = normalizeBody(req.body);
   const employeeId = payload.employee_id || payload.employeeId || payload.usuario;
@@ -149,7 +149,7 @@ exports.listControlAguaMensualReports = onRequest({secrets: []}, withCors(async 
   res.json(reports);
 }));
 
-exports.deleteControlAguaMensualReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.deleteControlAguaMensualReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   const {id} = req.query;
   const db = await getDb();
   const existing = await db.collection(CONTROL_AGUA_MENSUAL_COLLECTION).findOne({_id: new ObjectId(id)});
@@ -175,7 +175,7 @@ exports.updateControlAguaMensualReport = onRequest(withCors(async (req, res) => 
 }));
 
 // Reporte Trimestral
-exports.createControlAguaTrimestralReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.createControlAguaTrimestralReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   const payload = normalizeBody(req.body);
   const employeeId = payload.employee_id || payload.employeeId || payload.usuario;
@@ -202,7 +202,7 @@ exports.listControlAguaTrimestralReports = onRequest({secrets: []}, withCors(asy
   res.json(reports);
 }));
 
-exports.deleteControlAguaTrimestralReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.deleteControlAguaTrimestralReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   const {id} = req.query;
   const db = await getDb();
   const existing = await db.collection(CONTROL_AGUA_TRIMESTRAL_COLLECTION).findOne({_id: new ObjectId(id)});

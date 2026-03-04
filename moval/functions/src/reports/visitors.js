@@ -4,11 +4,11 @@ const {onRequest} = require("firebase-functions/v2/https");
 const {withCors, normalizeBody} = require("../utils");
 const {getDb} = require("../database");
 const {deleteDropboxFileIfExists, uploadFormularioSignatureFromDataUrl, ensureSharedLink} = require("../dropbox");
-const {VISITORS_BOOK_COLLECTION} = require("../config");
+const {VISITORS_BOOK_COLLECTION, dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret} = require("../config");
 const logger = require("firebase-functions/logger");
 const {ObjectId} = require("mongodb");
 
-exports.createVisitorsBookReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.createVisitorsBookReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "POST") {
     res.status(405).json({error: "METHOD_NOT_ALLOWED"});
     return;
@@ -71,7 +71,7 @@ Firma: ${firmaInfo?.uploaded ? "Subida a Dropbox" : "No disponible"}`;
   res.status(201).json({id: result.insertedId, success: true});
 }));
 
-exports.listVisitorsBookReports = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.listVisitorsBookReports = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   const {limit = "200", employeeId} = req.query;
   const db = await getDb();
   const collection = db.collection(VISITORS_BOOK_COLLECTION);
@@ -106,7 +106,7 @@ exports.saveVisitorsBookDraft = onRequest(withCors(async (req, res) => {
   res.status(201).json({id: result.insertedId, success: true});
 }));
 
-exports.deleteVisitorsBookReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.deleteVisitorsBookReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "DELETE") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   const {id} = req.query;
   if (!id) { res.status(400).json({error: "ID_REQUIRED"}); return; }

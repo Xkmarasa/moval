@@ -4,7 +4,7 @@ const {onRequest} = require("firebase-functions/v2/https");
 const {withCors, normalizeBody} = require("../utils");
 const {getDb} = require("../database");
 const {deleteDropboxFileIfExists, uploadFormularioSignatureFromDataUrl} = require("../dropbox");
-const {WEIGHT_REPORTS_COLLECTION} = require("../config");
+const {WEIGHT_REPORTS_COLLECTION, dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret} = require("../config");
 const {ObjectId} = require("mongodb");
 
 const normalizePesos = (value) => {
@@ -16,7 +16,7 @@ const normalizePesos = (value) => {
   });
 };
 
-exports.createWeightReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.createWeightReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   const payload = normalizeBody(req.body);
   const employeeId = payload.employee_id || payload.employeeId || payload.usuario;
@@ -76,7 +76,7 @@ exports.listWeightReports = onRequest({secrets: []}, withCors(async (req, res) =
   res.json(reports.map(r => ({id: r._id, employee_id: r.employee_id, fecha: r.fecha, hora: r.hora, promedio: r.promedio, completo: r.completo})));
 }));
 
-exports.deleteWeightReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.deleteWeightReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   const {id} = req.query;
   const db = await getDb();
   const existing = await db.collection(WEIGHT_REPORTS_COLLECTION).findOne({_id: new ObjectId(id)});

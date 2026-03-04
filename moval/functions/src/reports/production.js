@@ -4,10 +4,10 @@ const {onRequest} = require("firebase-functions/v2/https");
 const {withCors, normalizeBody} = require("../utils");
 const {getDb} = require("../database");
 const {deleteDropboxFileIfExists, uploadFormularioSignatureFromDataUrl} = require("../dropbox");
-const {PRODUCTION_REPORTS_COLLECTION} = require("../config");
+const {PRODUCTION_REPORTS_COLLECTION, dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret} = require("../config");
 const {ObjectId} = require("mongodb");
 
-exports.createProductionReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.createProductionReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   const payload = normalizeBody(req.body);
   const employeeId = payload.employee_id || payload.employeeId || payload.usuario;
@@ -40,7 +40,7 @@ exports.listProductionReports = onRequest({secrets: []}, withCors(async (req, re
   res.json(reports.map(r => ({id: r._id, employee_id: r.employee_id, fecha: r.fecha, hora: r.hora, tipoProducto: r.tipoProducto, phPcc2: r.phPcc2})));
 }));
 
-exports.deleteProductionReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.deleteProductionReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   const {id} = req.query;
   const db = await getDb();
   const existing = await db.collection(PRODUCTION_REPORTS_COLLECTION).findOne({_id: new ObjectId(id)});

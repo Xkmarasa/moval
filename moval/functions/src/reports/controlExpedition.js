@@ -4,10 +4,10 @@ const {onRequest} = require("firebase-functions/v2/https");
 const {withCors, normalizeBody} = require("../utils");
 const {getDb} = require("../database");
 const {deleteDropboxFileIfExists, uploadFormularioSignatureFromDataUrl} = require("../dropbox");
-const {CONTROL_EXPEDICION_COLLECTION} = require("../config");
+const {CONTROL_EXPEDICION_COLLECTION, dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret} = require("../config");
 const {ObjectId} = require("mongodb");
 
-exports.createControlExpeditionReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.createControlExpeditionReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   const payload = normalizeBody(req.body);
   const employeeId = payload.employee_id || payload.employeeId || payload.usuario;
@@ -63,7 +63,7 @@ exports.updateControlExpeditionReport = onRequest(withCors(async (req, res) => {
   res.json({success: true});
 }));
 
-exports.deleteControlExpeditionReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.deleteControlExpeditionReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "DELETE") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   const {id} = req.query;
   const db = await getDb();

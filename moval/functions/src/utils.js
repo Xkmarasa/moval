@@ -67,14 +67,47 @@ function setCorsHeaders(req, res) {
 }
 
 // Normaliza el body de la request
+// Maneja JSON, FormData (multipart), y datos urlencoded
 function normalizeBody(body) {
   if (!body) return {};
-  if (typeof body === "object") return body;
-  try {
-    return JSON.parse(body);
-  } catch (error) {
-    return {};
+  
+  // Si ya es un objeto (incluyendo FormData parseado por Express)
+  if (typeof body === "object") {
+    // Si tiene keys que son números o strings normales (no archivos), es un objeto normal
+    const keys = Object.keys(body);
+    const hasFileFields = keys.some(key => body[key] && typeof body[key] === 'object' && body[key].data);
+    
+    // Si tiene campos de archivo (FormData parseado), procesarlo
+    if (hasFileFields || keys.length === 0) {
+      const normalized = {};
+      for (const key of keys) {
+        const value = body[key];
+        if (value && typeof value === 'object' && value.data) {
+          // Es un archivo buffer
+          normalized[key] = value;
+        } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+          // Es un campo normal
+          normalized[key] = value;
+        } else if (Array.isArray(value)) {
+          // Es un array
+          normalized[key] = value;
+        }
+      }
+      return normalized;
+    }
+    return body;
   }
+  
+  // Si es string, intentar parsear como JSON
+  if (typeof body === "string") {
+    try {
+      return JSON.parse(body);
+    } catch (error) {
+      return {};
+    }
+  }
+  
+  return {};
 }
 
 // Normaliza el usuario para la respuesta

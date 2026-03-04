@@ -4,10 +4,10 @@ const {onRequest} = require("firebase-functions/v2/https");
 const {withCors, normalizeBody} = require("../utils");
 const {getDb} = require("../database");
 const {deleteDropboxFileIfExists, uploadFormularioSignatureFromDataUrl} = require("../dropbox");
-const {CLEANING_PLANT_REPORTS_COLLECTION} = require("../config");
+const {CLEANING_PLANT_REPORTS_COLLECTION, dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret} = require("../config");
 const {ObjectId} = require("mongodb");
 
-exports.createCleaningPlantReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.createCleaningPlantReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   const payload = normalizeBody(req.body);
   const employeeId = payload.employee_id || payload.employeeId || payload.usuario;
@@ -56,7 +56,7 @@ exports.updateCleaningPlantReport = onRequest(withCors(async (req, res) => {
   res.json({success: true});
 }));
 
-exports.deleteCleaningPlantReport = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.deleteCleaningPlantReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   if (req.method !== "DELETE") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
   const {id} = req.query;
   const db = await getDb();

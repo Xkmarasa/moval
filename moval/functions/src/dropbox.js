@@ -461,8 +461,8 @@ async function uploadToolImageFromBuffer(buffer, fileName, tipoRegistro, kit = n
       "KIT_3_ENVASADORA_TARRINAS": "ENVASADORA TARRINAS",
       "KIT_4_CAJA_COMUN": "CAJA COMUN",
     };
-    const kitFolder = kitFolderMap[kit] || "HERRAMIENTAS DE ENVASADORA";
-    dropboxPath = `${BASE_PATH}/HERRAMIENTAS DE ENVASADORA/${kitFolder}/${fileName}`;
+    const kitFolder = kitFolderMap[kit] || "HERRAMIENTAS DE ENVASADORAS";
+    dropboxPath = `${BASE_PATH}/HERRAMIENTAS DE ENVASADORAS/${kitFolder}/${fileName}`;
   }
 
   logger.info("Subiendo imagen de Tool Registration a Dropbox", {tipoRegistro, kit, dropboxPath, fileName});
