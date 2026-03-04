@@ -373,6 +373,147 @@ async function ensureSharedLink(collection, reportId, firmaInfo, fieldName = "fi
   return {...firmaInfo, sharedLink};
 }
 
+// Sube una firma de Tool Registration a Dropbox (ruta específica para herramientas)
+async function uploadToolSignatureFromDataUrl(dataUrl, fileName, tipoRegistro, kit = null) {
+  const BASE_PATH = "/SISTEMAS 2021/MOVAL FOODS/3. RRPP Y APPCC/6. MANTENIMIENTO Y EQUIPOS DE MEDICION/REGISTRO CONTROL DE HERRAMIENTAS";
+  
+  // Determinar la subcarpeta según el tipo de registro
+  let subFolder;
+  if (tipoRegistro === "MANTENIMIENTO_EXTERNO") {
+    subFolder = "MANTENIMIENTO EXTERNO";
+  } else {
+    subFolder = "HERRAMIENTAS DE ENVASADORA";
+  }
+  
+  const dropboxPath = `${BASE_PATH}/${subFolder}/FIRMAS/${fileName}`;
+
+  const base64Part = (dataUrl || "").split(",")[1];
+  if (!base64Part) {
+    throw new Error("Firma en formato base64 inválido");
+  }
+
+  const fileBuffer = Buffer.from(base64Part, "base64");
+
+  logger.info("Subiendo firma de Tool Registration a Dropbox", {tipoRegistro, kit, dropboxPath, fileName});
+
+  try {
+    const DROPBOX_ACCESS_TOKEN = await getDropboxAccessToken();
+    const response = await fetch("https://content.dropboxapi.com/2/files/upload", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${DROPBOX_ACCESS_TOKEN}`,
+        "Content-Type": "application/octet-stream",
+        "Dropbox-API-Arg": JSON.stringify({
+          path: dropboxPath,
+          mode: "add",
+          autorename: true,
+          mute: false,
+        }),
+      },
+      body: fileBuffer,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.error("Error subiendo firma de Tool Registration a Dropbox", {status: response.status, errorText});
+      throw new Error("No se pudo subir la firma a Dropbox");
+    }
+
+    const result = await response.json();
+    const resultPath = result.path_display || dropboxPath;
+
+    let sharedLink = "";
+    try {
+      sharedLink = await createDropboxSharedLink(resultPath);
+    } catch (linkError) {
+      logger.warn("No se pudo crear enlace compartido para firma", {error: linkError.message});
+      sharedLink = `https://www.dropbox.com/home${encodeURI(resultPath)}`;
+    }
+
+    logger.info("Firma de Tool Registration subida correctamente a Dropbox", {fileName, dropboxPath: resultPath});
+    return {...result, sharedLink};
+  } catch (error) {
+    logger.error("Error en uploadToolSignatureFromDataUrl", {
+      error: error.message,
+      stack: error.stack,
+      fileName,
+      dropboxPath,
+    });
+    throw error;
+  }
+}
+
+// Sube una imagen de Tool Registration a Dropbox (ruta específica para herramientas)
+async function uploadToolImageFromBuffer(buffer, fileName, tipoRegistro, kit = null) {
+  const BASE_PATH = "/SISTEMAS 2021/MOVAL FOODS/3. RRPP Y APPCC/6. MANTENIMIENTO Y EQUIPOS DE MEDICION/REGISTRO CONTROL DE HERRAMIENTAS";
+  
+  let dropboxPath;
+  
+  if (tipoRegistro === "MANTENIMIENTO_EXTERNO") {
+    // Para mantenimiento externo, las fotos van directamente en la carpeta
+    dropboxPath = `${BASE_PATH}/MANTENIMIENTO EXTERNO/${fileName}`;
+  } else {
+    // Para herramientas envasadoras, las fotos van en la subcarpeta del kit
+    // Mapear el valor del kit al nombre de carpeta
+    const kitFolderMap = {
+      "KIT_1_ENVASADORA_3.6_KG": "ENVASADORA 3600",
+      "KIT_2_ENVASADORA_2_KG": "ENVASADORA 2000 ML",
+      "KIT_3_ENVASADORA_TARRINAS": "ENVASADORA TARRINAS",
+      "KIT_4_CAJA_COMUN": "CAJA COMUN",
+    };
+    const kitFolder = kitFolderMap[kit] || "HERRAMIENTAS DE ENVASADORA";
+    dropboxPath = `${BASE_PATH}/HERRAMIENTAS DE ENVASADORA/${kitFolder}/${fileName}`;
+  }
+
+  logger.info("Subiendo imagen de Tool Registration a Dropbox", {tipoRegistro, kit, dropboxPath, fileName});
+
+  try {
+    const DROPBOX_ACCESS_TOKEN = await getDropboxAccessToken();
+    const response = await fetch("https://content.dropboxapi.com/2/files/upload", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${DROPBOX_ACCESS_TOKEN}`,
+        "Content-Type": "application/octet-stream",
+        "Dropbox-API-Arg": JSON.stringify({
+          path: dropboxPath,
+          mode: "add",
+          autorename: true,
+          mute: false,
+        }),
+      },
+      body: buffer,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.error("Error subiendo imagen de Tool Registration a Dropbox", {status: response.status, errorText});
+      throw new Error("No se pudo subir la imagen a Dropbox");
+    }
+
+    const result = await response.json();
+    const resultPath = result.path_display || dropboxPath;
+
+    let sharedLink = "";
+    try {
+      sharedLink = await createDropboxSharedLink(resultPath);
+    } catch (linkError) {
+      logger.warn("No se pudo crear enlace compartido para imagen", {error: linkError.message});
+      sharedLink = `https://www.dropbox.com/home${encodeURI(resultPath)}`;
+    }
+
+    logger.info("Imagen de Tool Registration subida correctamente a Dropbox", {fileName, dropboxPath: resultPath});
+    return {...result, sharedLink};
+  } catch (error) {
+    logger.error("Error en uploadToolImageFromBuffer", {
+      error: error.message,
+      stack: error.stack,
+      fileName,
+      dropboxPath,
+    });
+    throw error;
+  }
+}
+
 module.exports = {
   getDropboxAccessToken,
   deleteDropboxFileIfExists,
@@ -380,5 +521,7 @@ module.exports = {
   uploadFormularioSignatureFromDataUrl,
   createDropboxSharedLink,
   ensureSharedLink,
+  uploadToolSignatureFromDataUrl,
+  uploadToolImageFromBuffer,
 };
 

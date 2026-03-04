@@ -25,11 +25,21 @@ exports.createControlExpeditionReport = onRequest({secrets: []}, withCors(async 
   }
 
   const doc = {
-    employee_id: String(employeeId).trim(), fecha: payload.fecha, hora: payload.hora || "",
-    producto: payload.producto, lote: payload.lote, numeroPalet: payload.numeroPalet,
-    paletIntegro: payload.paletIntegro, flejadoOK: payload.flejadoOK, etiquetaCorrecta: payload.etiquetaCorrecta,
-    conteoCorrecto: payload.conteoCorrecto, responsable: payload.responsable, firmaInfo,
-    createdAt: now, updatedAt: now,
+    employee_id: String(employeeId).trim(), 
+    fecha: payload.fecha, 
+    hora: payload.hora || "",
+    producto: payload.producto, 
+    lote: payload.lote, 
+    numeroPalet: payload.numeroPalet,
+    cajasSueltas: payload.cajasSueltas || "",
+    paletIntegro: payload.paletIntegro, 
+    flejadoOK: payload.flejadoOK, 
+    etiquetaCorrecta: payload.etiquetaCorrecta,
+    conteoCorrecto: payload.conteoCorrecto, 
+    responsable: payload.responsable, 
+    firmaInfo,
+    createdAt: now, 
+    updatedAt: now,
   };
   const result = await db.collection(CONTROL_EXPEDICION_COLLECTION).insertOne(doc);
   res.status(201).json({id: result.insertedId, success: true});

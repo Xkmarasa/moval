@@ -326,6 +326,7 @@ const ReportsManagement = ({
         Producto: report.producto ?? '',
         Lote: report.lote ?? '',
         NumeroPalet: report.numeroPalet ?? '',
+        CajasSueltas: report.cajasSueltas ?? '',
         PaletIntegro: report.paletIntegro ?? '',
         FlejadoOK: report.flejadoOK ?? '',
         EtiquetaCorrecta: report.etiquetaCorrecta ?? '',
