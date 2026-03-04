@@ -258,7 +258,7 @@ function App() {
     fetchRecords();
     fetchStats();
     
-    // Cargar automÃ¡ticamente los datos de limpieza planta
+    // Cargar automáticamente los datos de limpieza planta
     fetchReportsByType("limpieza_planta");
     
     return () => {
@@ -266,7 +266,7 @@ function App() {
     };
   }, [role, apiBase]);
 
-  // Resetear lÃ­mites cuando cambian los registros
+  // Resetear límites cuando cambian los registros
   useEffect(() => {
     if (role === "admin") {
       setPendingRecordsLimit(10);
@@ -274,11 +274,11 @@ function App() {
     }
   }, [adminRecords.length, role]);
 
-  // FunciÃ³n para eliminar un registro de tiempo
+  // Función para eliminar un registro de tiempo
   const handleDeleteRecord = async (recordId) => {
     const confirmed = await confirmAction({
       title: "Eliminar registro",
-      message: "Â¿EstÃ¡s seguro de que quieres eliminar este registro? Esta acciÃ³n no se puede deshacer.",
+      message: "¿Estás seguro de que quieres eliminar este registro? Esta acción no se puede deshacer.",
       confirmLabel: "Eliminar",
       cancelLabel: "Cancelar",
       tone: "danger",
@@ -307,7 +307,7 @@ function App() {
     }
   };
 
-  // FunciÃ³n para actualizar un registro de tiempo
+  // Función para actualizar un registro de tiempo
   const handleUpdateRecord = async (recordId, updatedData) => {
     try {
       const response = await fetch(`${apiBase}/updateEntry?id=${recordId}`, {
@@ -336,11 +336,11 @@ function App() {
     }
   };
 
-  // FunciÃ³n para eliminar un informe de herramientas
+  // Función para eliminar un informe de herramientas
   const handleDeleteToolReport = async (reportId) => {
     const confirmed = await confirmAction({
       title: "Eliminar informe",
-      message: "Â¿EstÃ¡s seguro de que quieres eliminar este informe? Esta acciÃ³n no se puede deshacer.",
+      message: "¿Estás seguro de que quieres eliminar este informe? Esta acción no se puede deshacer.",
       confirmLabel: "Eliminar",
       cancelLabel: "Cancelar",
       tone: "danger",
@@ -372,7 +372,7 @@ function App() {
     }
   };
 
-  // FunciÃ³n para actualizar un informe de herramientas
+  // Función para actualizar un informe de herramientas
   const handleUpdateToolReport = async (reportId, updatedData) => {
     try {
       const response = await fetch(`${apiBase}/updateToolReport?id=${reportId}`, {
@@ -404,7 +404,7 @@ function App() {
     }
   };
 
-  // FunciÃ³n para actualizar un informe de control de residuos
+  // Función para actualizar un informe de control de residuos
   const handleUpdateControlResiduesReport = async (reportId, updatedData) => {
     try {
       const response = await fetch(`${apiBase}/updateControlResiduesReport?id=${reportId}`, {
@@ -670,7 +670,7 @@ function App() {
     };
   }, [role, user, apiBase]);
 
-  // FunciÃ³n para cargar informes por tipo
+  // Función para cargar informes por tipo
   const fetchReportsByType = async (type) => {
     if (role !== "admin") return;
     
@@ -854,7 +854,7 @@ function App() {
     }
   };
 
-  // FunciÃ³n para cargar todos los borradores pendientes (admin)
+  // Función para cargar todos los borradores pendientes (admin)
   const fetchAllPendingDrafts = async () => {
     if (role !== "admin") return;
     setDraftsLoading(true);
@@ -1106,7 +1106,7 @@ function App() {
           desviaciones: initialDeviation,
         },
         {
-          area: "PCC2 â€“ pH",
+          area: "PCC2 – pH",
           registros: productionReportsWeek.length,
           desviaciones: productionDeviation,
         },
@@ -1173,7 +1173,7 @@ function App() {
   const exportWeeklySummary = () => {
     if (!weeklySummaryMeta) return;
     const { start, end } = weeklySummaryMeta;
-    const headerSemana = weeklyExportForm.semana || `${formatDate(start)} â€“ ${formatDate(end)}`;
+    const headerSemana = weeklyExportForm.semana || `${formatDate(start)} – ${formatDate(end)}`;
     const lote = weeklyExportForm.lote || "";
     const fechaCaducidad = weeklyExportForm.fechaCaducidad || "";
     const responsable = weeklyExportForm.responsable || "";
@@ -1195,11 +1195,11 @@ function App() {
     });
 
     const sheetData = [
-      ["DASHBOARD SEMANAL CONTROL PRODUCCIÃ“N", "", "", "", "LOTE", lote],
+      ["DASHBOARD SEMANAL CONTROL PRODUCCIÓN", "", "", "", "LOTE", lote],
       ["Semana", headerSemana, "", "", "FEC. CAD.", fechaCaducidad],
-      ["Responsable revisiÃ³n", responsable, "", "", "", ""],
+      ["Responsable revisión", responsable, "", "", "", ""],
       [""],
-      ["ÃREA CONTROLADA", "Registros real", "Desviaciones de", "Estado"],
+      ["ÁREA CONTROLADA", "Registros real", "Desviaciones de", "Estado"],
       ...tableRows,
       [""],
       ["TOTAL DESVIACIONES SEMANALES", totalDesviaciones],
@@ -1231,7 +1231,7 @@ function App() {
     XLSX.writeFile(workbook, `control_semanal_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
-  // FunciÃ³n para renderizar la tabla de informes segÃºn el tipo activo
+  // Función para renderizar la tabla de informes según el tipo activo
   const renderReportsTable = () => {
     let reports = [];
     let reportType = "";
@@ -1329,7 +1329,7 @@ function App() {
       return "NO";
     };
 
-    // FunciÃ³n para exportar a Excel
+    // Función para exportar a Excel
     const exportToExcel = () => {
       let dataForExcel = reports;
 
@@ -1376,7 +1376,7 @@ function App() {
             Sabor: report.sabor ?? "",
             Textura: report.textura ?? "",
             "pH (PCC2)": report.phPcc2 ?? report.datosCompletos?.phPcc2 ?? "",
-            "NÃºmero campaÃ±a": report.numeroCampana ?? report.datosCompletos?.numeroCampana ?? "",
+            "Número campaña": report.numeroCampana ?? report.datosCompletos?.numeroCampana ?? "",
             Aceite: yesNoFromValue(checklist.aceite),
             Huevo: yesNoFromValue(checklist.huevo),
             Yema: yesNoFromValue(checklist.yema),
@@ -1484,7 +1484,7 @@ function App() {
           Hora: report.hora,
           Zona: (report.zonaNombre || report.zona) ?? "",
           Periodo: report.periodo || "SEMANAL",
-          LimpiezaCompletada: report.limpiezaCompletada ? "SÃ­" : "No",
+          LimpiezaCompletada: report.limpiezaCompletada ? "Sí" : "No",
           FirmaDropbox: report.firmaInfo?.sharedLink || "",
         }));
       } else if (reportType === "recepcion_salida") {
@@ -1551,9 +1551,9 @@ function App() {
           Empleado: getEmployeeName(report),
           Fecha: report.fecha,
           Hora: report.hora,
-          "Temperatura Calentador (&ge;60ÂºC)": report.temperaturaCalentador ?? "",
-          "Cloro DepÃ³sito (0,2-1 PPM)": report.cloroDeposito ?? "",
-          "pH DepÃ³sito (6,5-8,5)": report.phDeposito ?? "",
+          "Temperatura Calentador (≥60ºC)": report.temperaturaCalentador ?? "",
+          "Cloro Depósito (0,2-1 PPM)": report.cloroDeposito ?? "",
+          "pH Depósito (6,5-8,5)": report.phDeposito ?? "",
           FirmaDropbox: report.firmaInfo?.sharedLink || "",
         }));
       } else if (reportType === "control_agua_semanal") {
@@ -1562,8 +1562,8 @@ function App() {
           Fecha: report.fecha,
           Hora: report.hora,
           "Turbidez Calentador (<4 UNF)": report.turbidezCalentador ?? "",
-          "Turbidez DepÃ³sito (<4 UNF)": report.turbidezDeposito ?? "",
-          "Purga Puntos Poco Uso (TÂº &ge; 50 ÂºC)": report.purgaPuntos ?? "",
+          "Turbidez Depósito (<4 UNF)": report.turbidezDeposito ?? "",
+          "Purga Puntos Poco Uso (Tº ≥ 50ºC)": report.purgaPuntos ?? "",
           "Turbidez Puntos Terminales (<4 UNF)": report.turbidezPuntos ?? "",
           FirmaDropbox: report.firmaInfo?.sharedLink || "",
         }));
@@ -1572,9 +1572,9 @@ function App() {
           Empleado: getEmployeeName(report),
           Fecha: report.fecha,
           Hora: report.hora,
-          "Suciedad o CorrosiÃ³n": report.suciedadCorrosion ?? "",
-          "TÂº < 20 ÂºC (frÃ­a)": report.tempFria ?? "",
-          "TÂº &ge; 50 ÂºC (caliente)": report.tempCaliente ?? "",
+          "Suciedad o Corrosión": report.suciedadCorrosion ?? "",
+          "Tº < 20ºC (fría)": report.tempFria ?? "",
+          "Tº ≥ 50ºC (caliente)": report.tempCaliente ?? "",
           "Cloro 0,2-1": report.cloroPuntos ?? "",
           FirmaDropbox: report.firmaInfo?.sharedLink || "",
         }));
@@ -1583,7 +1583,7 @@ function App() {
           Empleado: getEmployeeName(report),
           Fecha: report.fecha,
           Hora: report.hora,
-          "Suciedad o CorrosiÃ³n": report.suciedadCorrosion ?? "",
+          "Suciedad o Corrosión": report.suciedadCorrosion ?? "",
           FirmaDropbox: report.firmaInfo?.sharedLink || "",
         }));
       } else if (reportType === "satisfaccion") {
@@ -1636,7 +1636,7 @@ function App() {
             onClick={exportToExcel}
             style={{ padding: "0.5rem 1rem" }}
           >
-            ðŸ“Š Exportar a Excel
+            📊 Exportar a Excel
           </button>
           <span style={{ color: "#64748b", fontSize: "0.9rem" }}>
             Total: {reports.length} informe(s)
@@ -1660,13 +1660,12 @@ function App() {
                 {activeTab === "testigos" && <th>Tipo Testigo</th>}
                 {activeTab === "libro_visitas" && <th>Motivo Visita</th>}
                 {activeTab === "recepcion_salida" && <th>Empresa</th>}
-                {activeTab === "recepcion_salida" && <th>NÂº AlbarÃ¡n</th>}
-                {activeTab === "control_residuos" && <th>Palets CartÃ³n</th>}
+
                 {activeTab === "control_expedicion" && <th>Producto</th>}
                 {activeTab === "control_agua_diario" && <th>Temp. Calentador</th>}
                 {activeTab === "control_agua_semanal" && <th>Turbidez Calentador</th>}
-                {activeTab === "control_agua_mensual" && <th>Suciedad/CorrosiÃ³n</th>}
-                {activeTab === "control_agua_trimestral" && <th>Suciedad/CorrosiÃ³n</th>}
+{activeTab === "control_agua_mensual" && <th>Suciedad/Corrosión</th>}
+                {activeTab === "control_agua_trimestral" && <th>Suciedad/Corrosión</th>}
                 {activeTab === "satisfaccion" && <th>Cliente</th>}
                 {activeTab === "satisfaccion" && <th>ISG</th>}
                 <th style={{ minWidth: "160px" }}>Acciones</th>
@@ -1760,7 +1759,7 @@ function App() {
                           setSelectedReportType(reportType);
                         }}
                       >
-                        ðŸ‘ï¸ Ver
+                      👁️ Ver
                       </button>
                       <button
                         type="button"
@@ -1820,7 +1819,7 @@ function App() {
                           }
                         }}
                       >
-                        âœï¸ Editar
+                        ✏️ Editar
                       </button>
                       <button
                         type="button"
@@ -1840,7 +1839,7 @@ function App() {
                           setDeletingReportType(reportType);
                         }}
                       >
-                        ðŸ—‘ï¸ Eliminar
+                        🗑️ Eliminar
                       </button>
                     </div>
                   </td>
@@ -1907,7 +1906,7 @@ function App() {
                   setShowToolRegistration(true);
                 }}
               >
-                ðŸ”§ Control de herramientas
+                🔧 Control de herramientas
               </button>
               <button
                 type="button"
@@ -1923,7 +1922,7 @@ function App() {
                 }}
                 onClick={() => setSelectedInforme("INICIAL")}
               >
-                ðŸ“‹ Inicial
+                📋 Inicial
               </button>
               <button
                 type="button"
@@ -1939,7 +1938,7 @@ function App() {
                 }}
                 onClick={() => setSelectedInforme("ENVASADO")}
               >
-                ðŸ“¦ Envasado
+                📦 Envasado
               </button>
               <button
                 type="button"
@@ -1955,7 +1954,7 @@ function App() {
                 }}
                 onClick={() => setSelectedInforme("PRODUCCION")}
               >
-                ðŸ­ ProducciÃ³n
+                🏭 Producción
               </button>
               <button
                 type="button"
@@ -1971,7 +1970,7 @@ function App() {
                 }}
                 onClick={() => setSelectedInforme("PESO_PRODUCTO")}
               >
-                âš–ï¸ Peso producto
+                ⚖️ Peso producto
               </button>
               <button
                 type="button"
@@ -1987,7 +1986,7 @@ function App() {
                 }}
                 onClick={() => setSelectedInforme("LIMPIEZA")}
               >
-                ðŸ§¹ Limpieza
+                🧹 Limpieza
               </button>
               <button
                 type="button"
@@ -2003,7 +2002,7 @@ function App() {
                 }}
                 onClick={() => setSelectedInforme("LIMPIEZA_PLANTA")}
               >
-                ðŸ­ Limpieza Planta
+               🏭­ Limpieza Planta
               </button>
               <button
                 type="button"
@@ -2019,7 +2018,7 @@ function App() {
                 }}
                 onClick={() => setSelectedInforme("LIBRO_VISITAS")}
               >
-                ðŸ“– Libro de visitas
+                📖 Libro de visitas
               </button>
               <button
                 type="button"
@@ -2035,7 +2034,7 @@ function App() {
                 }}
                 onClick={() => setSelectedInforme("RECEPCION_SALIDA")}
               >
-                ðŸšš RecepciÃ³n / salida mercancÃ­a
+                🚚 Recepción / salida mercancía
               </button>
               <button
                 type="button"
@@ -2051,7 +2050,7 @@ function App() {
                 }}
                 onClick={() => setSelectedInforme("CONTROL_RESIDUOS")}
               >
-                â™»ï¸ Control de residuos
+                ♻️ Control de residuos
               </button>
               <button
                 type="button"
@@ -2067,7 +2066,7 @@ function App() {
                 }}
                 onClick={() => setSelectedInforme("TESTIGOS")}
               >
-                ðŸ§² Registro de Testigos
+                🧲 Registro de Testigos
               </button>
               <button
                 type="button"
@@ -2083,7 +2082,7 @@ function App() {
                 }}
                 onClick={() => setSelectedInforme("CONTROL_EXPEDICION")}
               >
-                ðŸ“¦ Control de expediciÃ³n
+                📦 Control de expedición
               </button>
               <button
                 type="button"
@@ -2099,7 +2098,7 @@ function App() {
                 }}
                 onClick={() => setShowControlAguaSelector(true)}
               >
-                ðŸ’§ Control agua
+                💧 Control agua
               </button>
             </div>
             {selectedInforme === "INICIAL" && (
@@ -2228,7 +2227,7 @@ function App() {
             {selectedInforme &&
               !["CONTROL_HERRAMIENTAS", "INICIAL", "ENVASADO", "PRODUCCION", "PESO_PRODUCTO", "LIMPIEZA", "LIMPIEZA_PLANTA", "LIBRO_VISITAS", "RECEPCION_SALIDA", "TESTIGOS", "CONTROL_RESIDUOS", "CONTROL_EXPEDICION", "CONTROL_AGUA_DIARIO", "CONTROL_AGUA_SEMANAL", "CONTROL_AGUA_MENSUAL", "CONTROL_AGUA_TRIMESTRAL"].includes(selectedInforme) && (
                 <p style={{ marginTop: "1.5rem", padding: "1rem", backgroundColor: "#f8fafc", borderRadius: "8px", color: "#64748b" }}>
-                  El informe <strong>{selectedInforme.replace("_", " ")}</strong> se mostrarÃ¡ aquÃ­ cuando estÃ© implementado.
+                  El informe <strong>{selectedInforme.replace("_", " ")}</strong> se mostrará aquí­ cuando esté implementado.
                 </p>
               )}
           </section>
@@ -2236,7 +2235,7 @@ function App() {
 
         <footer className="app-footer">
           <BrandLogo />
-          <p>Â© {new Date().getFullYear()} DK Tegoria Â· MÃ³dulo de informes</p>
+          <p>© {new Date().getFullYear()} DK Tegoria · Módulo de informes</p>
         </footer>
 
         {showToolRegistration && (
@@ -2259,7 +2258,7 @@ function App() {
                   onClick={() => setShowControlAguaSelector(false)}
                   aria-label="Cerrar"
                 >
-                  Ã—
+                  x
                 </button>
               </div>
               <div className="modal-body">
@@ -2403,7 +2402,7 @@ function App() {
       if (!response.ok) {
         const errorMsg =
           payload.error === "ENTRY_NOT_FOUND"
-            ? "No se encontrÃ³ una entrada pendiente. AsegÃºrate de registrar la entrada primero."
+            ? "No se encontró una entrada pendiente. Asegúrate de registrar la entrada primero."
             : payload.message || payload.error || "No se pudo registrar";
         throw new Error(errorMsg);
       }
@@ -2416,7 +2415,7 @@ function App() {
             : "Salida registrada correctamente.",
       });
       
-      // Actualizar el estado de entrada pendiente despuÃ©s de la acciÃ³n
+      // Actualizar el estado de entrada pendiente  después de la acción
       if (action === "in") {
         setHasPendingEntry(true);
       } else if (action === "out") {
