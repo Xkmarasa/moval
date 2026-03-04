@@ -18,6 +18,7 @@ export const useReports = (role, apiBase) => {
   const [controlAguaMensualReports, setControlAguaMensualReports] = useState([]);
   const [controlAguaTrimestralReports, setControlAguaTrimestralReports] = useState([]);
   const [satisfactionForms, setSatisfactionForms] = useState([]);
+  const [revisionReports, setRevisionReports] = useState([]);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [reportsError, setReportsError] = useState(null);
 
@@ -81,6 +82,9 @@ export const useReports = (role, apiBase) => {
         case 'satisfaccion':
           endpoint = 'listCustomerSatisfactionForms';
           break;
+        case 'revision':
+          endpoint = 'listInformesRevision';
+          break;
         default:
           return;
       }
@@ -99,8 +103,20 @@ export const useReports = (role, apiBase) => {
       }
       const data = await response.json();
       
+      // Handle revision report response (object with pagination)
+      if (type === 'revision') {
+        if (data.reports) {
+          setRevisionReports(data.reports);
+        } else {
+          setRevisionReports(data);
+        }
+        setReportsLoading(false);
+        return;
+      }
+      
       if (!Array.isArray(data)) {
         console.warn(`Expected array but got:`, typeof data, data);
+        setReportsLoading(false);
         return;
       }
       
@@ -219,6 +235,9 @@ export const useReports = (role, apiBase) => {
       case 'recepcion_salida':
         endpoint = 'deleteReceptionExitReport';
         break;
+      case 'revision':
+        endpoint = 'deleteInformeRevision';
+        break;
       default:
         return { success: false, error: 'Tipo de informe desconocido' };
     }
@@ -255,6 +274,7 @@ export const useReports = (role, apiBase) => {
     controlAguaMensualReports,
     controlAguaTrimestralReports,
     satisfactionForms,
+    revisionReports,
     reportsLoading,
     reportsError,
     fetchReportsByType,
@@ -263,3 +283,4 @@ export const useReports = (role, apiBase) => {
 };
 
 export default useReports;
+

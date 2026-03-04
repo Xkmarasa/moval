@@ -23,6 +23,7 @@ const ReportsManagement = ({
   controlAguaMensualReports,
   controlAguaTrimestralReports,
   satisfactionForms,
+  revisionReports,
   onViewReport,
   onEditReport,
   onDeleteReport,
@@ -46,9 +47,9 @@ const ReportsManagement = ({
     { id: 'control_agua_mensual', label: '💧 Control agua mensual' },
     { id: 'control_agua_trimestral', label: '💧 Control agua trimestral' },
     { id: 'satisfaccion', label: '😊 Satisfacción cliente' },
+    { id: 'revision', label: '📝 Revisión' },
   ];
 
-  // Cargar informes cuando cambia el tab
   useEffect(() => {
     if (activeTab) {
       fetchReportsByType(activeTab);
@@ -74,6 +75,7 @@ const ReportsManagement = ({
       case 'control_agua_mensual': return controlAguaMensualReports;
       case 'control_agua_trimestral': return controlAguaTrimestralReports;
       case 'satisfaccion': return satisfactionForms;
+      case 'revision': return revisionReports;
       default: return [];
     }
   };
@@ -115,13 +117,35 @@ const ReportsManagement = ({
     }
   };
 
+  const getRevisionExcelData = (reports) => {
+    return reports.map((report) => {
+      const summary = report.conformitySummary || {};
+      return {
+        Empleado: report.employee_id || '',
+        Fecha: report.fecha || '',
+        Hora: report.hora || '',
+        'Total Puntos': summary.total || 0,
+        Conforme: summary.conforme || 0,
+        'No Conforme': summary.noConforme || 0,
+        'N/A': summary.na || 0,
+        'Firma Empleado': report.firmaInfo?.firmaEmpleado?.nombre || '',
+        'URL Firma Empleado': report.firmaInfo?.firmaEmpleado?.url || '',
+        'Firma Responsable': report.firmaInfo?.firmaResponsable?.nombre || '',
+        'URL Firma Responsable': report.firmaInfo?.firmaResponsable?.url || '',
+        'Fecha Creación': report.createdAt ? new Date(report.createdAt).toLocaleString() : '',
+      };
+    });
+  };
+
   const exportToExcel = () => {
     const reports = getReports();
     if (reports.length === 0) return;
 
     let dataForExcel = reports;
 
-    if (activeTab === 'peso') {
+    if (activeTab === 'revision') {
+      dataForExcel = getRevisionExcelData(reports);
+    } else if (activeTab === 'peso') {
       const TOTAL_PESOS = 80;
       dataForExcel = reports.map((report) => {
         const row = {
@@ -413,6 +437,7 @@ const ReportsManagement = ({
       case 'control_agua_mensual': return [...baseHeaders, 'Suciedad/Corrosión'];
       case 'control_agua_trimestral': return [...baseHeaders, 'Suciedad/Corrosión'];
       case 'satisfaccion': return [...baseHeaders, 'Cliente', 'ISG'];
+      case 'revision': return [...baseHeaders, 'Total', 'Conforme', 'No Conforme'];
       default: return baseHeaders;
     }
   };
@@ -420,6 +445,14 @@ const ReportsManagement = ({
   const getCellValue = (report, columnIndex) => {
     const baseColumns = 3;
     switch (activeTab) {
+      case 'revision':
+        if (columnIndex === baseColumns) {
+          const summary = report.conformitySummary || {};
+          return summary.total || 0;
+        }
+        if (columnIndex === baseColumns + 1) return (report.conformitySummary || {}).conforme || 0;
+        if (columnIndex === baseColumns + 2) return (report.conformitySummary || {}).noConforme || 0;
+        break;
       case 'herramientas':
         if (columnIndex === baseColumns) return report.tipoRegistro === 'MANTENIMIENTO_EXTERNO' ? 'Mantenimiento' : 'Herramientas';
         break;
@@ -548,3 +581,4 @@ const ReportsManagement = ({
 };
 
 export default ReportsManagement;
+

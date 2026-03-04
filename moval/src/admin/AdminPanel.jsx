@@ -61,6 +61,7 @@ const AdminPanel = ({ onLogout }) => {
     controlAguaMensualReports,
     controlAguaTrimestralReports,
     satisfactionForms,
+    revisionReports,
     reportsLoading,
     reportsError,
     fetchReportsByType,
@@ -346,6 +347,7 @@ const AdminPanel = ({ onLogout }) => {
           controlAguaMensualReports={controlAguaMensualReports}
           controlAguaTrimestralReports={controlAguaTrimestralReports}
           satisfactionForms={satisfactionForms}
+          revisionReports={revisionReports}
           onViewReport={(report) => { setSelectedReport(report); setSelectedReportType(activeTab); }}
           onEditReport={() => {}}
           onDeleteReport={handleDeleteReport}

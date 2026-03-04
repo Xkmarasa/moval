@@ -12,6 +12,7 @@ import ProductionReport from "./components/ProductionReport";
 import WeightReport from "./components/WeightReport";
 import CleaningReport from "./components/CleaningReport";
 import CleaningPlantReport from "./components/CleaningPlantReport";
+import RevisionReport from "./components/RevisionReport";
 import VisitorsBookReport from "./components/VisitorsBookReport";
 import ReceptionExitReport from "./components/ReceptionExitReport";
 import ControlResiduesReport from "./components/ControlResiduesReport";
@@ -1862,7 +1863,7 @@ function App() {
             <div>
               <p className="eyebrow">Plataforma interna</p>
               <h1>
-                MÃ³dulo de <span>Informes</span>
+                Módulo de <span>Informes</span>
               </h1>
               <p>
                 Selecciona el tipo de informe que quieres elaborar o consultar.
@@ -1880,7 +1881,7 @@ function App() {
         <main className="dashboard">
           <section className="panel">
             <div className="panel__header">
-              <h2>MenÃº de informes</h2>
+              <h2>Menú de informes</h2>
               <p>Elige el tipo de informe que deseas crear.</p>
             </div>
             <div style={{ 
@@ -2100,6 +2101,22 @@ function App() {
               >
                 💧 Control agua
               </button>
+              <button
+                type="button"
+                className={`dk-btn dk-btn--primary${selectedInforme === "REVISION" ? " is-active" : ""}`}
+                style={{ 
+                  padding: "1.5rem 1rem",
+                  fontSize: "1rem",
+                  fontWeight: "600",
+                  minHeight: "80px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}
+                onClick={() => setSelectedInforme("REVISION")}
+              >
+                📋 Informe de Revisión
+              </button>
             </div>
             {selectedInforme === "INICIAL" && (
               <InitialReport
@@ -2224,8 +2241,16 @@ function App() {
                 onNotify={notify}
               />
             )}
+            {selectedInforme === "REVISION" && (
+              <RevisionReport
+                onClose={() => setSelectedInforme(null)}
+                user={user}
+                apiBase={apiBase}
+                onNotify={notify}
+              />
+            )}
             {selectedInforme &&
-              !["CONTROL_HERRAMIENTAS", "INICIAL", "ENVASADO", "PRODUCCION", "PESO_PRODUCTO", "LIMPIEZA", "LIMPIEZA_PLANTA", "LIBRO_VISITAS", "RECEPCION_SALIDA", "TESTIGOS", "CONTROL_RESIDUOS", "CONTROL_EXPEDICION", "CONTROL_AGUA_DIARIO", "CONTROL_AGUA_SEMANAL", "CONTROL_AGUA_MENSUAL", "CONTROL_AGUA_TRIMESTRAL"].includes(selectedInforme) && (
+              !["CONTROL_HERRAMIENTAS", "INICIAL", "ENVASADO", "PRODUCCION", "PESO_PRODUCTO", "LIMPIEZA", "LIMPIEZA_PLANTA", "LIBRO_VISITAS", "RECEPCION_SALIDA", "TESTIGOS", "CONTROL_RESIDUOS", "CONTROL_EXPEDICION", "CONTROL_AGUA_DIARIO", "CONTROL_AGUA_SEMANAL", "CONTROL_AGUA_MENSUAL", "CONTROL_AGUA_TRIMESTRAL", "REVISION"].includes(selectedInforme) && (
                 <p style={{ marginTop: "1.5rem", padding: "1rem", backgroundColor: "#f8fafc", borderRadius: "8px", color: "#64748b" }}>
                   El informe <strong>{selectedInforme.replace("_", " ")}</strong> se mostrará aquí­ cuando esté implementado.
                 </p>
