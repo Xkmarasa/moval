@@ -331,8 +331,6 @@ const RevisionReport = ({ onClose, user, apiBase, onNotify, onConfirm }) => {
   const [formData, setFormData] = useState({
     fecha: "",
     hora: "",
-    firmaNombreEmpleado: "",
-    firmaImagenBase64: "",
     firmaNombreResponsable: "",
     firmaImagenBase64Responsable: "",
   });
@@ -340,9 +338,7 @@ const RevisionReport = ({ onClose, user, apiBase, onNotify, onConfirm }) => {
   const [checklistStates, setChecklistStates] = useState({});
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const canvasRef = useRef(null);
   const canvasRefResponsable = useRef(null);
-  const isDrawingRef = useRef(false);
   const isDrawingRefResponsable = useRef(false);
 
   const notify = (type, message) => {
@@ -370,84 +366,14 @@ const RevisionReport = ({ onClose, user, apiBase, onNotify, onConfirm }) => {
     }));
   };
 
-  const validateForm = () => {
+const validateForm = () => {
     const newErrors = {};
     if (!formData.fecha) newErrors.fecha = "La fecha es requerida";
     if (!formData.hora) newErrors.hora = "La hora es requerida";
-    if (!formData.firmaNombreEmpleado) newErrors.firmaNombreEmpleado = "La firma (nombre del empleado) es requerida";
-    if (!formData.firmaImagenBase64) newErrors.firmaImagenBase64 = "Debe dibujar la firma";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
-  // Efecto para el canvas del empleado
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    let ctx;
-
-    const setup = () => {
-      requestAnimationFrame(() => {
-        ctx = resizeSignatureCanvas(canvas);
-      });
-    };
-
-    const resizeHandler = () => { ctx = resizeSignatureCanvas(canvas); };
-
-    setup();
-    window.addEventListener("resize", resizeHandler);
-
-    const getCoordinates = (e) => {
-      const rect = canvas.getBoundingClientRect();
-      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    };
-
-    const startDrawing = (e) => {
-      e.preventDefault();
-      if (e.pointerId && canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
-      isDrawingRef.current = true;
-
-      const { x, y } = getCoordinates(e);
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-    };
-
-    const draw = (e) => {
-      if (!isDrawingRef.current) return;
-      e.preventDefault();
-      const { x, y } = getCoordinates(e);
-      ctx.lineTo(x, y);
-      ctx.stroke();
-    };
-
-    const stopDrawing = (e) => {
-      if (e?.pointerId && canvas.releasePointerCapture) {
-        try { canvas.releasePointerCapture(e.pointerId); } catch {}
-      }
-      if (!isDrawingRef.current) return;
-
-      isDrawingRef.current = false;
-      setFormData((prev) => ({ ...prev, firmaImagenBase64: canvas.toDataURL("image/png") }));
-    };
-
-    canvas.style.touchAction = "none";
-    canvas.addEventListener("pointerdown", startDrawing);
-    canvas.addEventListener("pointermove", draw);
-    canvas.addEventListener("pointerup", stopDrawing);
-    canvas.addEventListener("pointerleave", stopDrawing);
-    canvas.addEventListener("pointercancel", stopDrawing);
-
-    return () => {
-      window.removeEventListener("resize", resizeHandler);
-      canvas.removeEventListener("pointerdown", startDrawing);
-      canvas.removeEventListener("pointermove", draw);
-      canvas.removeEventListener("pointerup", stopDrawing);
-      canvas.removeEventListener("pointerleave", stopDrawing);
-      canvas.removeEventListener("pointercancel", stopDrawing);
-    };
-  }, []);
 
   // Efecto para el canvas del responsable
   useEffect(() => {
@@ -514,13 +440,8 @@ const RevisionReport = ({ onClose, user, apiBase, onNotify, onConfirm }) => {
       canvas.removeEventListener("pointerup", stopDrawing);
       canvas.removeEventListener("pointerleave", stopDrawing);
       canvas.removeEventListener("pointercancel", stopDrawing);
-    };
+};
   }, []);
-
-  const clearSignature = () => {
-    clearSignatureCanvas(canvasRef.current);
-    setFormData((prev) => ({ ...prev, firmaImagenBase64: "" }));
-  };
 
   const clearSignatureResponsable = () => {
     clearSignatureCanvas(canvasRefResponsable.current);
@@ -533,18 +454,32 @@ const RevisionReport = ({ onClose, user, apiBase, onNotify, onConfirm }) => {
 
     setIsSubmitting(true);
     try {
+      // Transform checklistStates to match backend expected format
+      // Backend expects: sections array with points having {id, label, value, comments}
+      const transformedSections = REVISION_SECTIONS.map(section => ({
+        id: section.id,
+        title: section.title,
+        points: section.points.map(point => {
+          const state = checklistStates[point.id] || {};
+          return {
+            id: point.id,
+            label: point.label,
+            value: state.estado || "",  // Backend expects 'value' not 'estado'
+            comments: state.comentarios || ""  // Backend expects 'comments' not 'comentarios'
+          };
+        })
+      }));
+
       const response = await fetch(`${apiBase}/createInformeRevision`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+body: JSON.stringify({
           employee_id: user?.usuario || user?.employee_id,
           fecha: formData.fecha,
           hora: formData.hora,
-          checklist: checklistStates,
-          firmaNombreEmpleado: formData.firmaNombreEmpleado,
-          firmaImagenBase64: formData.firmaImagenBase64,
+          sections: transformedSections,
           firmaNombreResponsable: formData.firmaNombreResponsable,
-          firmaImagenBase64Responsable: formData.firmaImagenBase64Responsable,
+          firmaResponsableBase64: formData.firmaImagenBase64Responsable,
         }),
       });
 
@@ -678,40 +613,7 @@ const RevisionReport = ({ onClose, user, apiBase, onNotify, onConfirm }) => {
                   </table>
                 </div>
               </div>
-            ))}
-          </div>
-
-          <div className="form-group form-group--signature">
-            <label htmlFor="firmaNombreEmpleado">
-              FIRMA DEL EMPLEADO <span className="required">*</span>
-            </label>
-            <div className="signature-container">
-              <div className="signature-name">
-                <input
-                  type="text"
-                  id="firmaNombreEmpleado"
-                  name="firmaNombreEmpleado"
-                  value={formData.firmaNombreEmpleado}
-                  onChange={handleChange}
-                  placeholder="Escriba el nombre del empleado que firma"
-                  className={errors.firmaNombreEmpleado ? "error" : ""}
-                  style={{ width: "100%", padding: "0.75rem", border: "1px solid #cbd5e1", borderRadius: "8px" }}
-                />
-                {errors.firmaNombreEmpleado && (
-                  <span className="error-message">{errors.firmaNombreEmpleado}</span>
-                )}
-              </div>
-              <canvas ref={canvasRef} className="signature-canvas" data-signature="empleado"></canvas>
-              <p className="signature-hint">Dibuja tu firma en el recuadro</p>
-              <div className="signature-controls">
-                <button type="button" className="dk-btn dk-btn--ghost" onClick={clearSignature}>
-                  Limpiar
-                </button>
-              </div>
-              {errors.firmaImagenBase64 && (
-                <span className="error-message">{errors.firmaImagenBase64}</span>
-              )}
-            </div>
+))}
           </div>
 
           <div className="form-group form-group--signature">

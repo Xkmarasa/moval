@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import "./ToolRegistration.css";
 
-const VisitorsBookReport = ({ onClose, user, apiBase, onNotify }) => {
+const VisitorsBookReport = ({ onClose, user, apiBase, onNotify, onConfirm }) => {
   const [formData, setFormData] = useState({
     fecha: "",
     horaEntrada: "",
@@ -18,11 +18,89 @@ const VisitorsBookReport = ({ onClose, user, apiBase, onNotify }) => {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [draftError, setDraftError] = useState("");
   const canvasRef = useRef(null);
   const isDrawingRef = useRef(false);
   const [draftId, setDraftId] = useState(null);
+  const initialSnapshotRef = useRef(null);
 
-  // Load pending draft from server (if any)
+  const confirmAction = async (message) => {
+    if (onConfirm) {
+      const options = typeof message === 'string' 
+        ? {
+            title: "Salir del informe",
+            message: message,
+            confirmLabel: "Salir",
+            cancelLabel: "Cancelar",
+            tone: "warning",
+          }
+        : message;
+      const result = await onConfirm(options);
+      return result;
+    }
+    return true;
+  };
+
+  const createSnapshot = () => ({
+    fecha: formData.fecha || "",
+    horaEntrada: formData.horaEntrada || "",
+    horaSalida: formData.horaSalida || "",
+    nombreApellidos: formData.nombreApellidos || "",
+    dni: formData.dni || "",
+    empresa: formData.empresa || "",
+    motivoVisita: formData.motivoVisita || "",
+    haLeidoNormas: formData.haLeidoNormas || "",
+    firmaNombreVisitante: formData.firmaNombreVisitante || "",
+    firmaImagenBase64: formData.firmaImagenBase64 || "",
+  });
+
+  const isDirty = () => {
+    // Si NO hay snapshot inicial (formulario nuevo sin borrador):
+    if (!initialSnapshotRef.current) {
+      // Si hay datos en el formulario, mostrar modal
+      const hasFormData = formData.fecha || formData.horaEntrada || formData.nombreApellidos || 
+                          formData.empresa || formData.motivoVisita || formData.firmaImagenBase64;
+      return hasFormData;
+    }
+    
+    // Si hay snapshot inicial (viene de un borrador), comparar datos actuales con el snapshot
+    const currentSnapshot = createSnapshot();
+    const isDifferent = JSON.stringify(currentSnapshot) !== JSON.stringify(initialSnapshotRef.current);
+    
+    // Si los datos son diferentes al borrador, mostrar modal
+    return isDifferent;
+  };
+
+  const handleCloseAttempt = async () => {
+    if (!isDirty()) {
+      onClose();
+      return;
+    }
+    const shouldClose = await confirmAction(
+      "Se perderán los datos no guardados. ¿Estás seguro de que quieres salir del formulario?",
+    );
+    if (shouldClose) {
+      onClose();
+    }
+  };
+
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isDirty()) {
+        e.preventDefault();
+        e.returnValue = "Se perderán los datos no guardados. ¿Estás seguro de que quieres salir?";
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [formData]);
+
   useEffect(() => {
     let mounted = true;
     const loadPending = async () => {
@@ -38,6 +116,7 @@ const VisitorsBookReport = ({ onClose, user, apiBase, onNotify }) => {
         if (resp.ok && data.pending && mounted && data.report) {
           setFormData((prev) => ({ ...prev, ...data.report }));
           setDraftId(data.report.id);
+          initialSnapshotRef.current = createSnapshot();
         }
       } catch (err) {
         // ignore
@@ -46,6 +125,7 @@ const VisitorsBookReport = ({ onClose, user, apiBase, onNotify }) => {
     loadPending();
     return () => { mounted = false; };
   }, [apiBase, user]);
+
   const notify = (type, message) => {
     if (onNotify) {
       onNotify(type, message);
@@ -53,19 +133,32 @@ const VisitorsBookReport = ({ onClose, user, apiBase, onNotify }) => {
   };
 
   const handleSaveDraft = async () => {
+    const newErrors = {};
+    if (!formData.fecha) newErrors.fecha = "La fecha es requerida";
+    if (!formData.horaEntrada) newErrors.horaEntrada = "La hora de entrada es requerida";
+    if (!formData.nombreApellidos) newErrors.nombreApellidos = "El nombre y apellidos son requeridos";
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors((prev) => ({...prev, ...newErrors}));
+      setDraftError("Por favor, completa los campos requeridos: Fecha, Hora de entrada y Nombre y apellidos");
+      return;
+    }
+
+    setDraftError("");
+
     try {
       const payload = {
-        employee_id: user?.usuario || user?.employee_id,
-        fecha: formData.fecha,
-        horaEntrada: formData.horaEntrada,
-        horaSalida: formData.horaSalida || null,
-        nombreApellidos: formData.nombreApellidos,
-        dni: formData.dni || null,
-        empresa: formData.empresa || null,
-        motivoVisita: formData.motivoVisita || null,
-        haLeidoNormas: formData.haLeidoNormas || null,
-        firmaNombreVisitante: formData.firmaNombreVisitante || null,
-        firmaImagenBase64: formData.firmaImagenBase64 || null,
+        employee_id: user?.usuario || user?.employee_id || "",
+        fecha: formData.fecha || "",
+        horaEntrada: formData.horaEntrada || "",
+        horaSalida: formData.horaSalida || "",
+        nombreApellidos: formData.nombreApellidos || "",
+        dni: formData.dni || "",
+        empresa: formData.empresa || "",
+        motivoVisita: formData.motivoVisita || "",
+        haLeidoNormas: formData.haLeidoNormas || "",
+        firmaNombreVisitante: formData.firmaNombreVisitante || "",
+        firmaImagenBase64: formData.firmaImagenBase64 || "",
         draftId,
       };
       const response = await fetch(`${apiBase}/saveVisitorsBookDraft`, {
@@ -265,7 +358,6 @@ const VisitorsBookReport = ({ onClose, user, apiBase, onNotify }) => {
       }
 
       notify("success", "Registro de Libro de visitas enviado correctamente. El informe ha sido guardado en la base de datos.");
-      // Optionally clear draftId on success
       setDraftId(null);
       onClose();
     } catch (error) {
@@ -293,7 +385,7 @@ const VisitorsBookReport = ({ onClose, user, apiBase, onNotify }) => {
             <button
               type="button"
               className="tool-registration-close"
-              onClick={onClose}
+              onClick={handleCloseAttempt}
               aria-label="Cerrar"
             >
               ×
@@ -513,7 +605,6 @@ const VisitorsBookReport = ({ onClose, user, apiBase, onNotify }) => {
             {errors.haLeidoNormas && <span className="error-message">{errors.haLeidoNormas}</span>}
           </div>
 
-          {/* FIRMA VISITANTE + DIBUJO */}
           <div className="form-group form-group--signature">
             <label htmlFor="firmaNombreVisitante">
               9. FIRMA VISITANTE <span className="required">*</span>
@@ -553,11 +644,16 @@ const VisitorsBookReport = ({ onClose, user, apiBase, onNotify }) => {
             </div>
           </div>
 
+          {draftError && (
+            <div className="error-message" style={{ marginBottom: '1rem', textAlign: 'center' }}>
+              {draftError}
+            </div>
+          )}
           <div className="form-actions">
             <button
               type="button"
               className="dk-btn dk-btn--ghost"
-              onClick={onClose}
+              onClick={handleCloseAttempt}
             >
               Cancelar
             </button>
@@ -583,11 +679,3 @@ const VisitorsBookReport = ({ onClose, user, apiBase, onNotify }) => {
 };
 
 export default VisitorsBookReport;
-
-
-
-
-
-
-
-

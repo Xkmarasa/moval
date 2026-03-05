@@ -57,7 +57,18 @@ exports.saveWeightDraft = onRequest(withCors(async (req, res) => {
 
   const db = await getDb();
   const now = new Date();
-  const doc = {employee_id: String(employeeId).trim(), fecha: payload.fecha, hora: payload.hora || "", tipoInforme: "PESO_PRODUCTO", completo: false, createdAt: now, updatedAt: now};
+  const pesos = payload.pesos || [];
+  const doc = {
+    employee_id: String(employeeId).trim(), 
+    fecha: payload.fecha, 
+    hora: payload.hora || "", 
+    tipoInforme: "PESO_PRODUCTO",
+    envaseCantidad: payload.envaseCantidad || "",
+    pesos: pesos,
+    completo: false, 
+    createdAt: now, 
+    updatedAt: now
+  };
   const result = await db.collection(WEIGHT_REPORTS_COLLECTION).insertOne(doc);
   res.status(201).json({id: result.insertedId, success: true});
 }));
@@ -67,7 +78,16 @@ exports.getPendingWeightReport = onRequest(withCors(async (req, res) => {
   if (!employeeId) { res.status(400).json({error: "MISSING_FIELDS"}); return; }
   const db = await getDb();
   const pending = await db.collection(WEIGHT_REPORTS_COLLECTION).findOne({employee_id: String(employeeId).trim(), completo: false}, {sort: {updatedAt: -1}});
-  res.json(pending ? {pending: true, report: {id: pending._id, fecha: pending.fecha, pesos: pending.pesos}} : {pending: false});
+  res.json(pending ? {
+    pending: true, 
+    report: {
+      id: pending._id,
+      fecha: pending.fecha,
+      hora: pending.hora || "",
+      envaseCantidad: pending.envaseCantidad || "",
+      pesos: pending.pesos || []
+    }
+  } : {pending: false});
 }));
 
 exports.listWeightReports = onRequest({secrets: []}, withCors(async (req, res) => {
@@ -85,3 +105,24 @@ exports.deleteWeightReport = onRequest({secrets: [dropboxToken, dropboxRefreshTo
   res.json({success: true});
 }));
 
+// List Weight Drafts - lista borradores (informes incompletos)
+exports.listWeightDrafts = onRequest(withCors(async (req, res) => {
+  const {limit = "100", employeeId} = req.query;
+  const db = await getDb();
+  const filter = {completo: false};
+  if (employeeId) {
+    filter.employee_id = String(employeeId).trim();
+  }
+  const drafts = await db.collection(WEIGHT_REPORTS_COLLECTION).find(filter).sort({createdAt: -1}).limit(parseInt(limit) || 100).toArray();
+  res.json(drafts.map(r => ({
+    id: r._id,
+    employee_id: r.employee_id,
+    fecha: r.fecha,
+    hora: r.hora,
+    envaseCantidad: r.envaseCantidad,
+    pesos: r.pesos,
+    promedio: r.promedio,
+    completo: r.completo,
+    createdAt: r.createdAt,
+  })));
+}));

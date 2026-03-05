@@ -159,12 +159,16 @@ exports.createEntry = onRequest(withCors(async (req, res) => {
 
   const db = await getDb();
   const collection = db.collection(RECORDS_COLLECTION);
+  
+  // Usar zona horaria de España
   const now = new Date();
+  const spainOffset = 1; // UTC+1 para España (invierno), cambiar a 2 en verano
+  const spainTime = new Date(now.getTime() + (spainOffset * 60 * 60 * 1000));
 
   const doc = {
     employee_id: String(employeeId).trim(),
-    date: now.toISOString().slice(0, 10),
-    check_in: now,
+    date: spainTime.toISOString().slice(0, 10),
+    check_in: spainTime,
     check_out: null,
     worked_hours: null,
     status: "incompleto",
@@ -174,7 +178,7 @@ exports.createEntry = onRequest(withCors(async (req, res) => {
   };
 
   const result = await collection.insertOne(doc);
-  logger.info("Entry created", {employeeId, entryId: result.insertedId});
+  logger.info("Entry created", {employeeId, entryId: result.insertedId, check_in: spainTime.toISOString()});
   res.status(201).json({id: result.insertedId, ...doc});
 }));
 
@@ -188,24 +192,52 @@ exports.completeEntry = onRequest(withCors(async (req, res) => {
   const collection = db.collection(RECORDS_COLLECTION);
   const normalizedId = String(employeeId).trim();
 
-  const existing = await collection.findOne({
-    $and: [
-      {$or: [{employee_id: normalizedId}, {employee_id: employeeId}]},
-      {$or: [{status: "incompleto"}, {check_out: null}, {check_out: {$exists: false}}]},
-    ],
-  }, {sort: {check_in: -1}});
+  logger.info("completeEntry called", {employeeId, normalizedId});
 
-  if (!existing) { res.status(404).json({error: "ENTRY_NOT_FOUND"}); return; }
+  // Simplified query - just find by employee_id and status incomplete
+  const query = {
+    employee_id: normalizedId,
+    $or: [
+      {status: "incompleto"},
+      {check_out: null},
+      {check_out: {$exists: false}}
+    ]
+  };
 
-  const endTime = new Date();
-  const hours = Math.max(0, (endTime.getTime() - new Date(existing.check_in).getTime()) / 3_600_000);
+  logger.info("completeEntry query", {query});
+
+  const existing = await collection.findOne(query, {sort: {check_in: -1}});
+
+  logger.info("completeEntry existing", {existing: existing ? "found" : "not found"});
+
+  if (!existing) {
+    // Try a broader search to debug
+    const allIncomplete = await collection.find({employee_id: normalizedId}).limit(5).toArray();
+    logger.info("completeEntry all records for employee", {count: allIncomplete.length, records: allIncomplete});
+    res.status(404).json({error: "ENTRY_NOT_FOUND"}); return;
+  }
+
+const endTime = new Date();
+  const spainOffset = 1;
+  const spainEndTime = new Date(endTime.getTime() + (spainOffset * 60 * 60 * 1000));
+  
+  // Convertir check_in a España también para el cálculo
+  const checkInDate = new Date(existing.check_in);
+  const checkInSpain = new Date(checkInDate.getTime() + (spainOffset * 60 * 60 * 1000));
+  
+  const hours = Math.max(0, (spainEndTime.getTime() - checkInSpain.getTime()) / 3_600_000);
   const workedHours = Math.round(hours * 100) / 100;
 
   const update = await collection.findOneAndUpdate(
     {_id: existing._id},
-    {$set: {check_out: endTime, worked_hours: workedHours, status: "completo", updatedAt: endTime}},
+    {$set: {check_out: spainEndTime, worked_hours: workedHours, status: "completo", updatedAt: spainEndTime}},
     {returnDocument: "after"},
   );
+
+  if (!update || !update.value) {
+    res.status(404).json({error: "ENTRY_NOT_FOUND_AFTER_UPDATE"});
+    return;
+  }
 
   res.json({
     id: update.value._id,
@@ -263,8 +295,9 @@ exports.deleteWitnessReport = reports.deleteWitnessReport;
 exports.createVisitorsBookReport = reports.createVisitorsBookReport;
 exports.listVisitorsBookReports = reports.listVisitorsBookReports;
 exports.saveVisitorsBookDraft = reports.saveVisitorsBookDraft;
-exports.getPendingVisitorsBookReport = reports.getPendingVisitorsBookReport;
+// getPendingVisitorsBookReport definido más abajo
 exports.deleteVisitorsBookReport = reports.deleteVisitorsBookReport;
+exports.listVisitorsBookDrafts = reports.listVisitorsBookDrafts;
 
 // Reception/Exit Reports
 exports.createReceptionExitReport = reports.createReceptionExitReport;
@@ -315,6 +348,7 @@ exports.createWeightReport = reports.createWeightReport;
 exports.saveWeightDraft = reports.saveWeightDraft;
 exports.getPendingWeightReport = reports.getPendingWeightReport;
 exports.listWeightReports = reports.listWeightReports;
+exports.listWeightDrafts = reports.listWeightDrafts;
 exports.deleteWeightReport = reports.deleteWeightReport;
 
 // Cleaning Plant Reports
@@ -354,6 +388,7 @@ exports.listInformesRevision = reports.listInformesRevision;
 exports.updateInformeRevision = reports.updateInformeRevision;
 exports.deleteInformeRevision = reports.deleteInformeRevision;
 exports.getInformeRevision = reports.getInformeRevision;
+exports.exportInformesRevisionExcel = reports.exportInformesRevisionExcel;
 
 
 
@@ -395,9 +430,24 @@ exports.getPendingVisitorsBookReport = onRequest(withCors(async (req, res) => {
   const {employeeId} = req.query;
   if (!employeeId) { res.status(400).json({error: "EMPLOYEE_REQUIRED"}); return; }
   const db = await getDb();
-  const report = await db.collection("libro_visitas").findOne({employee_id: employeeId, status: "pending"});
-  if (!report) { res.status(404).json({error: "NOT_FOUND"}); return; }
-  res.json(report);
+  const report = await db.collection("libro_visitas").findOne(
+    {employee_id: String(employeeId).trim(), completo: false}, 
+    {sort: {updatedAt: -1}}
+  );
+  if (!report) { res.json({pending: false}); return; }
+  res.json({pending: true, report: {
+    id: report._id,
+    fecha: report.fecha,
+    horaEntrada: report.horaEntrada,
+    horaSalida: report.horaSalida,
+    nombreApellidos: report.nombreApellidos,
+    dni: report.dni,
+    empresa: report.empresa,
+    motivoVisita: report.motivoVisita,
+    haLeidoNormas: report.haLeidoNormas,
+    firmaNombreVisitante: report.firmaInfo?.nombre,
+    firmaImagenBase64: null
+  }});
 }));
 
 exports.updateProductionReport = onRequest(withCors(async (req, res) => {
@@ -420,189 +470,6 @@ exports.updateWeightReport = onRequest(withCors(async (req, res) => {
   await db.collection(WEIGHT_REPORTS_COLLECTION).updateOne({_id: new ObjectId(id)}, {$set: {...payload, updatedAt: new Date()}});
   const updated = await db.collection(WEIGHT_REPORTS_COLLECTION).findOne({_id: new ObjectId(id)});
   res.json(updated);
-}));
-
-// ==========================================
-// ENDPOINTS - REVISION REPORTS (NEW)
-// ==========================================
-
-// Create revision report
-exports.createInformeRevision = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
-  try {
-    if (req.method !== "POST") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
-
-    const payload = normalizeBody(req.body);
-    const {employee_id, fecha, hora, sections, comments, firmaImagenBase64, firmaNombreEmpleado, firmaResponsable, firmaNombreResponsable} = payload;
-
-    if (!employee_id || !fecha || !hora) { res.status(400).json({error: "MISSING_FIELDS"}); return; }
-
-    const db = await getDb();
-    const collection = db.collection(REVISION_REPORTS_COLLECTION);
-    const now = new Date();
-    const safeTimestamp = Date.now();
-
-    let firmaInfo = {};
-    if (firmaImagenBase64 && firmaNombreEmpleado) {
-      const filename = `revision_${safeTimestamp}_empleado_${firmaNombreEmpleado.replace(/\s+/g, "_")}.png`;
-      try {
-        const result = await uploadFormularioSignatureFromDataUrl(firmaImagenBase64, filename, "REVISION");
-        if (result) {
-          firmaInfo.firmaEmpleado = {nombre: firmaNombreEmpleado, dropboxPath: result.path_display, url: result.sharedLink};
-        }
-      } catch (e) { logger.error("Error uploading employee signature", {error: e.message}); }
-    }
-
-    if (firmaResponsable && firmaNombreResponsable) {
-      const filename = `revision_${safeTimestamp}_responsable_${firmaNombreResponsable.replace(/\s+/g, "_")}.png`;
-      try {
-        const result = await uploadFormularioSignatureFromDataUrl(firmaResponsable, filename, "REVISION");
-        if (result) {
-          firmaInfo.firmaResponsable = {nombre: firmaNombreResponsable, dropboxPath: result.path_display, url: result.sharedLink};
-        }
-      } catch (e) { logger.error("Error uploading responsible signature", {error: e.message}); }
-    }
-
-    let totalPoints = 0, conformePoints = 0, noConformePoints = 0, naPoints = 0;
-    if (sections) {
-      Object.values(sections).forEach(section => {
-        if (section.points) {
-          Object.values(section.points).forEach(point => {
-            totalPoints++;
-            if (point.status === "C") conformePoints++;
-            else if (point.status === "NC") noConformePoints++;
-            else if (point.status === "NA") naPoints++;
-          });
-        }
-      });
-    }
-
-    const doc = {
-      employee_id, fecha, hora, sections: sections || {}, comments: comments || {}, firmaInfo,
-      conformitySummary: {total: totalPoints, conforme: conformePoints, noConforme: noConformePoints, na: naPoints},
-      createdAt: now.toISOString(), updatedAt: now.toISOString()
-    };
-
-    const result = await collection.insertOne(doc);
-    logger.info("Revision report created", {reportId: result.insertedId});
-    res.status(201).json({id: result.insertedId, ...doc});
-  } catch (error) {
-    logger.error("Error in createInformeRevision", {error: error.message, stack: error.stack});
-    res.status(500).json({error: "INTERNAL_ERROR", message: error.message});
-  }
-}));
-
-exports.listInformesRevision = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
-  try {
-    const {page = 1, limit = 20, startDate, endDate} = req.query;
-    const db = await getDb();
-    const collection = db.collection(REVISION_REPORTS_COLLECTION);
-    const query = {};
-    if (startDate || endDate) {
-      query.fecha = {};
-      if (startDate) query.fecha.$gte = startDate;
-      if (endDate) query.fecha.$lte = endDate;
-    }
-    const total = await collection.countDocuments(query);
-    const reports = await collection.find(query).sort({createdAt: -1}).skip((parseInt(page) - 1) * parseInt(limit)).limit(parseInt(limit)).toArray();
-    res.json({reports, pagination: {page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / parseInt(limit))}});
-  } catch (error) {
-    logger.error("Error in listInformesRevision", {error: error.message});
-    res.status(500).json({error: "INTERNAL_ERROR"});
-  }
-}));
-
-exports.getInformeRevision = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
-  try {
-    const {id} = req.query;
-    if (!id) { res.status(400).json({error: "ID_REQUIRED"}); return; }
-    const db = await getDb();
-    const report = await db.collection(REVISION_REPORTS_COLLECTION).findOne({_id: new ObjectId(id)});
-    if (!report) { res.status(404).json({error: "NOT_FOUND"}); return; }
-    res.json(report);
-  } catch (error) {
-    logger.error("Error in getInformeRevision", {error: error.message});
-    res.status(500).json({error: "INTERNAL_ERROR"});
-  }
-}));
-
-exports.updateInformeRevision = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
-  try {
-    if (req.method !== "PUT" && req.method !== "PATCH") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
-    const {id} = req.query;
-    const {sections, comments} = normalizeBody(req.body);
-    if (!id) { res.status(400).json({error: "ID_REQUIRED"}); return; }
-
-    const db = await getDb();
-    const updateFields = {updatedAt: new Date().toISOString()};
-    if (sections) updateFields.sections = sections;
-    if (comments) updateFields.comments = comments;
-
-    await db.collection(REVISION_REPORTS_COLLECTION).updateOne({_id: new ObjectId(id)}, {$set: updateFields});
-    const updated = await db.collection(REVISION_REPORTS_COLLECTION).findOne({_id: new ObjectId(id)});
-    logger.info("Revision report updated", {reportId: id});
-    res.json(updated);
-  } catch (error) {
-    logger.error("Error in updateInformeRevision", {error: error.message});
-    res.status(500).json({error: "INTERNAL_ERROR"});
-  }
-}));
-
-exports.deleteInformeRevision = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
-  try {
-    if (req.method !== "DELETE") { res.status(405).json({error: "METHOD_NOT_ALLOWED"}); return; }
-    const {id} = req.query;
-    if (!id) { res.status(400).json({error: "ID_REQUIRED"}); return; }
-
-    const db = await getDb();
-    const existing = await db.collection(REVISION_REPORTS_COLLECTION).findOne({_id: new ObjectId(id)});
-    if (!existing) { res.status(404).json({error: "NOT_FOUND"}); return; }
-
-    if (existing.firmaInfo) {
-      if (existing.firmaInfo.firmaEmpleado?.dropboxPath) await deleteDropboxFileIfExists(existing.firmaInfo.firmaEmpleado.dropboxPath);
-      if (existing.firmaInfo.firmaResponsable?.dropboxPath) await deleteDropboxFileIfExists(existing.firmaInfo.firmaResponsable.dropboxPath);
-    }
-
-    await db.collection(REVISION_REPORTS_COLLECTION).deleteOne({_id: new ObjectId(id)});
-    logger.info("Revision report deleted", {reportId: id});
-    res.json({message: "Informe eliminado correctamente"});
-  } catch (error) {
-    logger.error("Error in deleteInformeRevision", {error: error.message});
-    res.status(500).json({error: "INTERNAL_ERROR"});
-  }
-}));
-
-exports.exportInformesRevisionExcel = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
-  try {
-    const {startDate, endDate} = req.query;
-    const db = await getDb();
-    const query = {};
-    if (startDate || endDate) {
-      query.fecha = {};
-      if (startDate) query.fecha.$gte = startDate;
-      if (endDate) query.fecha.$lte = endDate;
-    }
-    const reports = await db.collection(REVISION_REPORTS_COLLECTION).find(query).sort({createdAt: -1}).toArray();
-
-    const excelData = reports.map(report => ({
-      fecha: report.fecha, hora: report.hora, employee_id: report.employee_id,
-      conformity_summary: `Total: ${report.conformitySummary?.total || 0}, C: ${report.conformitySummary?.conforme || 0}, NC: ${report.conformitySummary?.noConforme || 0}`,
-      firma_empleado: report.firmaInfo?.firmaEmpleado?.nombre || "", firma_empleado_url: report.firmaInfo?.firmaEmpleado?.url || "",
-      firma_responsable: report.firmaInfo?.firmaResponsable?.nombre || "", firma_responsable_url: report.firmaInfo?.firmaResponsable?.url || "",
-      createdAt: report.createdAt
-    }));
-
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.json_to_sheet(excelData);
-    worksheet['!cols'] = [{wch: 10}, {wch: 8}, {wch: 20}, {wch: 40}, {wch: 25}, {wch: 50}, {wch: 25}, {wch: 50}, {wch: 20}];
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Informes_Revision");
-
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename=informes_revision_${Date.now()}.xlsx`);
-    res.send(XLSX.write(workbook, {type: "buffer", bookType: "xlsx"}));
-  } catch (error) {
-    logger.error("Error in exportInformesRevisionExcel", {error: error.message});
-    res.status(500).json({error: "INTERNAL_ERROR"});
-  }
 }));
 
 // ==========================================

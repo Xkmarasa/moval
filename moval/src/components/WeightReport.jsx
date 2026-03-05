@@ -215,9 +215,19 @@ const WeightReport = ({ onClose, user, apiBase, pendingReport, onDraftStateChang
   });
 
   const isDirty = () => {
-    if (!initialSnapshotRef.current) return false;
+    // Si NO hay snapshot inicial (formulario nuevo sin borrador):
+    if (!initialSnapshotRef.current) {
+      // Si hay datos en el formulario, mostrar modal
+      const hasFormData = fecha || hora || envaseCantidad || pesos.some(p => p) || firmaImagenBase64;
+      return hasFormData;
+    }
+    
+    // Si hay snapshot inicial (viene de un borrador), comparar datos actuales con el snapshot
     const currentSnapshot = getCurrentSnapshot();
-    return JSON.stringify(currentSnapshot) !== JSON.stringify(initialSnapshotRef.current);
+    const isDifferent = JSON.stringify(currentSnapshot) !== JSON.stringify(initialSnapshotRef.current);
+    
+    // Si los datos son diferentes al borrador, mostrar modal
+    return isDifferent;
   };
 
   useEffect(() => {

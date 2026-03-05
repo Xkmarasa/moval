@@ -29,6 +29,7 @@ module.exports = {
   saveVisitorsBookDraft: visitors.saveVisitorsBookDraft,
   getPendingVisitorsBookReport: visitors.getPendingVisitorsBookReport,
   deleteVisitorsBookReport: visitors.deleteVisitorsBookReport,
+  listVisitorsBookDrafts: visitors.listVisitorsBookDrafts,
 
 // Reception/Exit Reports
   createReceptionExitReport: reception.createReceptionExitReport,
@@ -85,6 +86,7 @@ module.exports = {
   saveWeightDraft: weight.saveWeightDraft,
   getPendingWeightReport: weight.getPendingWeightReport,
   listWeightReports: weight.listWeightReports,
+  listWeightDrafts: weight.listWeightDrafts,
   updateWeightReport: weight.updateWeightReport,
   deleteWeightReport: weight.deleteWeightReport,
 
@@ -124,5 +126,6 @@ module.exports = {
   updateInformeRevision: revision.updateInformeRevision,
   deleteInformeRevision: revision.deleteInformeRevision,
   getInformeRevision: revision.getInformeRevision,
+  exportInformesRevisionExcel: revision.exportInformesRevisionExcel,
 };
 

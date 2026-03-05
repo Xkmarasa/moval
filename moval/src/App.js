@@ -2175,6 +2175,7 @@ function App() {
                 user={user}
                 apiBase={apiBase}
                 onNotify={notify}
+                onConfirm={confirmAction}
               />
             )}
             {selectedInforme === "RECEPCION_SALIDA" && (

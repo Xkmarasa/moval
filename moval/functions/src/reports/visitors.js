@@ -91,16 +91,65 @@ exports.saveVisitorsBookDraft = onRequest(withCors(async (req, res) => {
   }
   const payload = normalizeBody(req.body);
   const employeeId = payload.employee_id || payload.employeeId || payload.usuario;
+  
+  // Validar campos mínimos requeridos
   if (!employeeId || !payload.fecha || !payload.horaEntrada || !payload.nombreApellidos) {
-    res.status(400).json({error: "MISSING_FIELDS"});
+    res.status(400).json({
+      error: "MISSING_FIELDS", 
+      message: "Se requieren: employee_id, fecha, horaEntrada y nombreApellidos"
+    });
     return;
   }
+  
   const db = await getDb();
   const collection = db.collection(VISITORS_BOOK_COLLECTION);
   const now = new Date();
+  
+  // Si existe un draftId, actualizar el documento existente
+  if (payload.draftId) {
+    const updateDoc = {
+      $set: {
+        fecha: payload.fecha,
+        horaEntrada: payload.horaEntrada,
+        horaSalida: payload.horaSalida || null,
+        nombreApellidos: payload.nombreApellidos,
+        dni: payload.dni || null,
+        empresa: payload.empresa || null,
+        motivoVisita: payload.motivoVisita || null,
+        haLeidoNormas: payload.haLeidoNormas || null,
+        firmaNombreVisitante: payload.firmaNombreVisitante || null,
+        firmaImagenBase64: payload.firmaImagenBase64 || null,
+        updatedAt: now,
+      }
+    };
+    try {
+      await collection.updateOne(
+        {_id: new ObjectId(payload.draftId)},
+        updateDoc
+      );
+      res.status(200).json({id: payload.draftId, success: true, updated: true});
+      return;
+    } catch (e) {
+      // Si falla la actualización, continuar para crear nuevo documento
+      logger.warn("Failed to update draft, creating new one", {error: e.message});
+    }
+  }
+  
   const doc = {
-    employee_id: String(employeeId).trim(), fecha: payload.fecha, horaEntrada: payload.horaEntrada,
-    nombreApellidos: payload.nombreApellidos, completo: false, createdAt: now, updatedAt: now,
+    employee_id: String(employeeId).trim(), 
+    fecha: payload.fecha, 
+    horaEntrada: payload.horaEntrada,
+    horaSalida: payload.horaSalida || null,
+    nombreApellidos: payload.nombreApellidos,
+    dni: payload.dni || null,
+    empresa: payload.empresa || null,
+    motivoVisita: payload.motivoVisita || null,
+    haLeidoNormas: payload.haLeidoNormas || null,
+    firmaNombreVisitante: payload.firmaNombreVisitante || null,
+    firmaImagenBase64: payload.firmaImagenBase64 || null,
+    completo: false, 
+    createdAt: now, 
+    updatedAt: now,
   };
   const result = await collection.insertOne(doc);
   res.status(201).json({id: result.insertedId, success: true});
@@ -117,5 +166,27 @@ exports.deleteVisitorsBookReport = onRequest({secrets: [dropboxToken, dropboxRef
   if (existing.firmaInfo?.dropboxPath) await deleteDropboxFileIfExists(existing.firmaInfo.dropboxPath);
   await collection.deleteOne({_id: new ObjectId(id)});
   res.json({success: true});
+}));
+
+// List Visitors Book Drafts - lista borradores (informes incompletos)
+exports.listVisitorsBookDrafts = onRequest(withCors(async (req, res) => {
+  const {limit = "100", employeeId} = req.query;
+  const db = await getDb();
+  const collection = db.collection(VISITORS_BOOK_COLLECTION);
+  const filter = {completo: false};
+  if (employeeId) {
+    filter.employee_id = employeeId;
+  }
+  const drafts = await collection.find(filter).sort({createdAt: -1}).limit(parseInt(limit) || 100).toArray();
+  res.json(drafts.map(r => ({
+    id: r._id,
+    employee_id: r.employee_id,
+    fecha: r.fecha,
+    horaEntrada: r.horaEntrada,
+    nombreApellidos: r.nombreApellidos,
+    empresa: r.empresa,
+    completo: r.completo,
+    createdAt: r.createdAt,
+  })));
 }));
 
