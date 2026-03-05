@@ -340,6 +340,7 @@ const RevisionReport = ({ onClose, user, apiBase, onNotify, onConfirm }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const canvasRefResponsable = useRef(null);
   const isDrawingRefResponsable = useRef(false);
+  const initialSnapshotRef = useRef(null);
 
   const notify = (type, message) => {
     if (onNotify) onNotify(type, message);

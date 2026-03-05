@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import "./ToolRegistration.css";
 
@@ -36,29 +37,11 @@ const WeightReport = ({ onClose, user, apiBase, pendingReport, onDraftStateChang
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
   const notify = (type, message) => {
     if (onNotify) {
       onNotify(type, message);
     }
-  };
-  const confirmAction = async (message) => {
-    if (onConfirm) {
-      // Si message es un string, crear un objeto con las opciones
-      const options = typeof message === 'string' 
-        ? {
-            title: "Salir del informe",
-            message: message,
-            confirmLabel: "Salir",
-            cancelLabel: "Cancelar",
-            tone: "warning",
-          }
-        : message;
-      // onConfirm de App.js retorna una Promise, necesitamos await
-      const result = await onConfirm(options);
-      return result;
-    }
-    // Si no hay onConfirm, permitir cerrar sin confirmación
-    return true;
   };
 
   const handlePesoChange = (index, value) => {
@@ -96,7 +79,6 @@ const WeightReport = ({ onClose, user, apiBase, pendingReport, onDraftStateChang
     return Object.keys(newErrors).length === 0;
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -106,23 +88,18 @@ const WeightReport = ({ onClose, user, apiBase, pendingReport, onDraftStateChang
     const resizeCanvas = () => {
       const rect = canvas.getBoundingClientRect();
       dpr = window.devicePixelRatio || 1;
-      // Store visual dimensions
       canvas.style.width = rect.width + "px";
       canvas.style.height = rect.height + "px";
-      // Set internal dimensions accounting for DPR
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
-      // Reset transform and apply scaling
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
-      // Re-apply styles after resize
       ctx.strokeStyle = "#012b5c";
       ctx.lineWidth = 2;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
     };
 
-    // Initial setup
     const resizeHandler = () => resizeCanvas();
     resizeCanvas();
     window.addEventListener("resize", resizeHandler);
@@ -134,7 +111,6 @@ const WeightReport = ({ onClose, user, apiBase, pendingReport, onDraftStateChang
         clientX = e.touches[0].clientX;
         clientY = e.touches[0].clientY;
       } else if (e.changedTouches && e.changedTouches.length > 0) {
-        // For touchend events
         clientX = e.changedTouches[0].clientX;
         clientY = e.changedTouches[0].clientY;
       } else {
@@ -180,13 +156,10 @@ const WeightReport = ({ onClose, user, apiBase, pendingReport, onDraftStateChang
       }
     };
 
-    // Mouse events
     canvas.addEventListener("mousedown", startDrawing);
     canvas.addEventListener("mousemove", draw);
     canvas.addEventListener("mouseup", stopDrawing);
     canvas.addEventListener("mouseleave", stopDrawing);
-
-    // Touch events with capture to prevent scrolling while drawing
     canvas.addEventListener("touchstart", startDrawing, { passive: false });
     canvas.addEventListener("touchmove", draw, { passive: false });
     canvas.addEventListener("touchend", stopDrawing, { passive: false });
@@ -214,20 +187,23 @@ const WeightReport = ({ onClose, user, apiBase, pendingReport, onDraftStateChang
     firmaImagenValue: firmaImagenBase64,
   });
 
-  const isDirty = () => {
-    // Si NO hay snapshot inicial (formulario nuevo sin borrador):
-    if (!initialSnapshotRef.current) {
-      // Si hay datos en el formulario, mostrar modal
-      const hasFormData = fecha || hora || envaseCantidad || pesos.some(p => p) || firmaImagenBase64;
-      return hasFormData;
+  const checkIsDirty = () => {
+    if (initialSnapshotRef.current) {
+      const currentSnapshot = getCurrentSnapshot();
+      const isDifferent = JSON.stringify(currentSnapshot) !== JSON.stringify(initialSnapshotRef.current);
+      return isDifferent;
     }
-    
-    // Si hay snapshot inicial (viene de un borrador), comparar datos actuales con el snapshot
-    const currentSnapshot = getCurrentSnapshot();
-    const isDifferent = JSON.stringify(currentSnapshot) !== JSON.stringify(initialSnapshotRef.current);
-    
-    // Si los datos son diferentes al borrador, mostrar modal
-    return isDifferent;
+    return false;
+  };
+
+  const handleCloseAttempt = () => {
+    if (!checkIsDirty()) {
+      onClose();
+      return;
+    }
+    if (window.confirm("Se perderán los datos no guardados. ¿Estás seguro de que quieres salir del formulario?")) {
+      onClose();
+    }
   };
 
   useEffect(() => {
@@ -306,36 +282,27 @@ const WeightReport = ({ onClose, user, apiBase, pendingReport, onDraftStateChang
     try {
       const response = await fetch(`${apiBase}/createWeightReport`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       const text = await response.text();
       let result = {};
       if (text) {
-        try {
-          result = JSON.parse(text);
-        } catch (parseError) {
-          console.error("Error parsing response:", parseError, text);
-        }
+        try { result = JSON.parse(text); } catch (parseError) { }
       }
 
       if (!response.ok) {
-        throw new Error(
-          result.message || result.error || `Error del servidor (${response.status})`,
-        );
+        throw new Error(result.message || result.error || `Error del servidor (${response.status})`);
       }
 
-      notify("success", "Informe de Peso producto enviado correctamente. El informe ha sido guardado en la base de datos.");
+      notify("success", "Informe de Peso producto enviado correctamente.");
       if (onDraftStateChange) {
         await onDraftStateChange();
       }
       onClose();
     } catch (error) {
       notify("error", `Error al enviar el formulario: ${error.message}`);
-      console.error("Error submitting weight report:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -346,10 +313,7 @@ const WeightReport = ({ onClose, user, apiBase, pendingReport, onDraftStateChang
     if (!fecha) newErrors.fecha = "La fecha es requerida";
     if (!hora) newErrors.hora = "La hora es requerida";
     if (Object.keys(newErrors).length > 0) {
-      setErrors((prev) => ({
-        ...prev,
-        ...newErrors,
-      }));
+      setErrors((prev) => ({ ...prev, ...newErrors }));
       return;
     }
 
@@ -366,24 +330,16 @@ const WeightReport = ({ onClose, user, apiBase, pendingReport, onDraftStateChang
     try {
       const response = await fetch(`${apiBase}/saveWeightDraft`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const text = await response.text();
       let result = {};
       if (text) {
-        try {
-          result = JSON.parse(text);
-        } catch (parseError) {
-          console.error("Error parsing response:", parseError, text);
-        }
+        try { result = JSON.parse(text); } catch (parseError) { }
       }
       if (!response.ok) {
-        throw new Error(
-          result.message || result.error || `Error del servidor (${response.status})`,
-        );
+        throw new Error(result.message || result.error || "Error guardando borrador");
       }
 
       if (result.id) {
@@ -403,32 +359,16 @@ const WeightReport = ({ onClose, user, apiBase, pendingReport, onDraftStateChang
       notify("success", "Borrador guardado correctamente.");
     } catch (error) {
       notify("error", `Error al guardar el borrador: ${error.message}`);
-      console.error("Error saving weight draft:", error);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleCloseAttempt = async () => {
-    if (!isDirty()) {
-      onClose();
-      return;
-    }
-    const shouldClose = await confirmAction(
-      "Se perderán los datos no guardados. ¿Estás seguro de que quieres salir del formulario?",
-    );
-    if (shouldClose) {
-      onClose();
-    }
-  };
-
-  // Detectar cuando el usuario intenta cerrar la pestaña o recargar la página
   useEffect(() => {
     const handleBeforeUnload = (e) => {
-      if (isDirty()) {
-        // Mostrar mensaje de confirmación en navegadores
+      if (checkIsDirty()) {
         e.preventDefault();
-        e.returnValue = "Se perderán los datos no guardados. ¿Estás seguro de que quieres salir?";
+        e.returnValue = "Se perderán los datos no guardados.";
         return e.returnValue;
       }
     };
@@ -457,46 +397,20 @@ const WeightReport = ({ onClose, user, apiBase, pendingReport, onDraftStateChang
 
         <form onSubmit={handleSubmit} className="tool-registration-form">
           <div className="form-group">
-            <label htmlFor="fecha">
-              1. FECHA <span className="required">*</span>
-            </label>
-            <input
-              type="date"
-              id="fecha"
-              name="fecha"
-              value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
-              className={errors.fecha ? "error" : ""}
-            />
+            <label htmlFor="fecha">1. FECHA <span className="required">*</span></label>
+            <input type="date" id="fecha" name="fecha" value={fecha} onChange={(e) => setFecha(e.target.value)} className={errors.fecha ? "error" : ""} />
             {errors.fecha && <span className="error-message">{errors.fecha}</span>}
           </div>
 
           <div className="form-group">
-            <label htmlFor="hora">
-              2. HORA <span className="required">*</span>
-            </label>
-            <input
-              type="time"
-              id="hora"
-              name="hora"
-              value={hora}
-              onChange={(e) => setHora(e.target.value)}
-              className={errors.hora ? "error" : ""}
-            />
+            <label htmlFor="hora">2. HORA <span className="required">*</span></label>
+            <input type="time" id="hora" name="hora" value={hora} onChange={(e) => setHora(e.target.value)} className={errors.hora ? "error" : ""} />
             {errors.hora && <span className="error-message">{errors.hora}</span>}
           </div>
 
           <div className="form-group">
-            <label htmlFor="envaseCantidad">
-              3. CANTIDAD/ENVASE <span className="required">*</span>
-            </label>
-            <select
-              id="envaseCantidad"
-              name="envaseCantidad"
-              value={envaseCantidad}
-              onChange={(e) => setEnvaseCantidad(e.target.value)}
-              className={errors.envaseCantidad ? "error" : ""}
-            >
+            <label htmlFor="envaseCantidad">3. CANTIDAD/ENVASE <span className="required">*</span></label>
+            <select id="envaseCantidad" name="envaseCantidad" value={envaseCantidad} onChange={(e) => setEnvaseCantidad(e.target.value)} className={errors.envaseCantidad ? "error" : ""}>
               <option value="">Selecciona una opción</option>
               <option value="2000 ML">2000 ml</option>
               <option value="3600 ML">3600 ml</option>
@@ -507,109 +421,38 @@ const WeightReport = ({ onClose, user, apiBase, pendingReport, onDraftStateChang
           </div>
 
           <div className="form-group">
-            <label>
-              4. REGISTRO DE PESOS (80 valores) <span className="required">*</span>
-            </label>
-            <div
-              className="checklist-container"
-              style={{
-                marginTop: "1rem",
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(80px, 1fr))",
-                gap: "0.75rem",
-              }}
-            >
+            <label>4. REGISTRO DE PESOS (80 valores) <span className="required">*</span></label>
+            <div className="checklist-container" style={{ marginTop: "1rem", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(80px, 1fr))", gap: "0.75rem" }}>
               {pesos.map((valor, index) => (
                 <div key={index} className="form-group" style={{ marginBottom: 0 }}>
-                  <label
-                    htmlFor={`peso_${index}`}
-                    style={{ display: "block", marginBottom: "0.25rem", fontSize: "0.8rem" }}
-                  >
-                    #{index + 1}
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    id={`peso_${index}`}
-                    name={`peso_${index}`}
-                    value={valor}
-                    onChange={(e) => handlePesoChange(index, e.target.value)}
-                    className={errors[`peso_${index}`] ? "error" : ""}
-                    style={{ padding: "0.4rem 0.5rem" }}
-                  />
-                  {errors[`peso_${index}`] && (
-                    <span className="error-message" style={{ fontSize: "0.7rem" }}>
-                      {errors[`peso_${index}`]}
-                    </span>
-                  )}
+                  <label htmlFor={`peso_${index}`} style={{ display: "block", marginBottom: "0.25rem", fontSize: "0.8rem" }}>#{index + 1}</label>
+                  <input type="number" step="0.01" id={`peso_${index}`} name={`peso_${index}`} value={valor} onChange={(e) => handlePesoChange(index, e.target.value)} className={errors[`peso_${index}`] ? "error" : ""} style={{ padding: "0.4rem 0.5rem" }} />
+                  {errors[`peso_${index}`] && <span className="error-message" style={{ fontSize: "0.7rem" }}>{errors[`peso_${index}`]}</span>}
                 </div>
               ))}
             </div>
           </div>
 
-          {/* FIRMA NOMBRE EMPLEADO + DIBUJO */}
           <div className="form-group form-group--signature">
-            <label htmlFor="firmaNombreEmpleado">
-              5. FIRMA (NOMBRE DEL EMPLEADO) <span className="required">*</span>
-            </label>
+            <label htmlFor="firmaNombreEmpleado">5. FIRMA (NOMBRE DEL EMPLEADO) <span className="required">*</span></label>
             <div className="signature-container">
               <div className="signature-name">
-                <input
-                  type="text"
-                  id="firmaNombreEmpleado"
-                  name="firmaNombreEmpleado"
-                  value={firmaNombreEmpleado}
-                  onChange={(e) => setFirmaNombreEmpleado(e.target.value)}
-                  placeholder="Escriba el nombre del empleado que firma"
-                  className={errors.firmaNombreEmpleado ? "error" : ""}
-                />
-                {errors.firmaNombreEmpleado && (
-                  <span className="error-message">{errors.firmaNombreEmpleado}</span>
-                )}
+                <input type="text" id="firmaNombreEmpleado" name="firmaNombreEmpleado" value={firmaNombreEmpleado} onChange={(e) => setFirmaNombreEmpleado(e.target.value)} placeholder="Escriba el nombre del empleado que firma" className={errors.firmaNombreEmpleado ? "error" : ""} />
+                {errors.firmaNombreEmpleado && <span className="error-message">{errors.firmaNombreEmpleado}</span>}
               </div>
-              <canvas
-                ref={canvasRef}
-                className="signature-canvas"
-              ></canvas>
+              <canvas ref={canvasRef} className="signature-canvas"></canvas>
               <p className="signature-hint">Dibuja tu firma en el recuadro</p>
               <div className="signature-controls">
-                <button
-                  type="button"
-                  className="dk-btn dk-btn--ghost"
-                  onClick={clearSignature}
-                >
-                  Limpiar
-                </button>
+                <button type="button" className="dk-btn dk-btn--ghost" onClick={clearSignature}>Limpiar</button>
               </div>
-              {errors.firmaImagenBase64 && (
-                <span className="error-message">{errors.firmaImagenBase64}</span>
-              )}
+              {errors.firmaImagenBase64 && <span className="error-message">{errors.firmaImagenBase64}</span>}
             </div>
           </div>
 
           <div className="form-actions">
-            <button
-              type="button"
-              className="dk-btn dk-btn--ghost"
-              onClick={handleCloseAttempt}
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              className="dk-btn dk-btn--ghost"
-              onClick={handleSaveDraft}
-              disabled={isSaving}
-            >
-              {isSaving ? "Guardando..." : "Guardar"}
-            </button>
-            <button
-              type="submit"
-              className="dk-btn dk-btn--primary"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Enviando..." : "Enviar"}
-            </button>
+            <button type="button" className="dk-btn dk-btn--ghost" onClick={handleCloseAttempt}>Cancelar</button>
+            <button type="button" className="dk-btn dk-btn--ghost" onClick={handleSaveDraft} disabled={isSaving}>{isSaving ? "Guardando..." : "Guardar"}</button>
+            <button type="submit" className="dk-btn dk-btn--primary" disabled={isSubmitting}>{isSubmitting ? "Enviando..." : "Enviar"}</button>
           </div>
         </form>
       </div>
@@ -618,6 +461,4 @@ const WeightReport = ({ onClose, user, apiBase, pendingReport, onDraftStateChang
 };
 
 export default WeightReport;
-
-
 
