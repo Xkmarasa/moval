@@ -319,7 +319,17 @@ async function createDropboxSharedLink(dropboxPath) {
 
     if (shareResponse.ok) {
       const shareResult = await shareResponse.json();
-      return shareResult.url.replace("www.dropbox.com", "dl.dropboxusercontent.com").replace("?dl=0", "");
+      
+      // Validar que shareResult.url existe y no es null/undefined
+      if (shareResult && shareResult.url) {
+        return shareResult.url
+          .replace("www.dropbox.com", "dl.dropboxusercontent.com")
+          .replace("?dl=0", "");
+      }
+      
+      // Si no hay URL, usar fallback
+      logger.warn("createDropboxSharedLink: shareResult.url es null/undefined, usando fallback", { dropboxPath });
+      return `https://www.dropbox.com/home${encodeURI(dropboxPath)}`;
     }
 
     const errorText = await shareResponse.text();
@@ -338,7 +348,7 @@ async function createDropboxSharedLink(dropboxPath) {
         });
         if (listResponse.ok) {
           const listResult = await listResponse.json();
-          if (listResult.links && listResult.links.length > 0) {
+          if (listResult.links && listResult.links.length > 0 && listResult.links[0].url) {
             return listResult.links[0].url
               .replace("www.dropbox.com", "dl.dropboxusercontent.com")
               .replace("?dl=0", "");

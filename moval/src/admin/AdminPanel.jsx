@@ -74,7 +74,8 @@ const AdminPanel = ({ onLogout }) => {
     weeklySummaryLoading,
     weeklySummaryError,
     fetchWeeklySummary,
-    formatDate
+    formatDate,
+    productionTypes
   } = useWeeklySummary(role, apiBase);
 
   // Cargar informes de limpieza planta al inicio y cuando sea necesario
@@ -408,6 +409,7 @@ const AdminPanel = ({ onLogout }) => {
           weeklySummaryError={weeklySummaryError}
           fetchWeeklySummary={fetchWeeklySummary}
           formatDate={formatDate}
+          productionTypes={productionTypes}
         />
 
         <PendingRecords 

@@ -259,7 +259,7 @@ const ReportsManagement = ({
       }));
     } else if (activeTab === 'herramientas') {
       dataForExcel = reports.map((report) => {
-        const fotosLinks = (report.fotosSubidas || [])
+        const fotosLinks = (report.fotos || [])
           .filter((f) => f.dropboxPath)
           .map((f) => f.sharedLink || `https://www.dropbox.com/home${encodeURI(f.dropboxPath)}`)
           .join(' ; ');
@@ -274,7 +274,7 @@ const ReportsManagement = ({
           ChecklistSalida: report.checklistSalida,
           RutaFotos: fotosLinks,
           NoConformidad: report.noConformidad,
-          FirmaDropbox: report.firmaSubida?.sharedLink || '',
+          FirmaDropbox: report.firmaInfo?.sharedLink || '',
         };
       });
     } else if (activeTab === 'inicial') {

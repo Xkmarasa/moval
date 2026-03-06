@@ -5,6 +5,7 @@ export const useWeeklySummary = (role, apiBase) => {
   const [weeklySummaryMeta, setWeeklySummaryMeta] = useState(null);
   const [weeklySummaryLoading, setWeeklySummaryLoading] = useState(false);
   const [weeklySummaryError, setWeeklySummaryError] = useState(null);
+  const [productionTypes, setProductionTypes] = useState([]);
 
   const formatDate = (value) => {
     if (!value) return '';
@@ -28,6 +29,29 @@ export const useWeeklySummary = (role, apiBase) => {
     return { start: monday, end: sunday };
   };
 
+  const getDateRange = (startValue, endValue) => {
+    let start, end;
+    
+    if (startValue && endValue) {
+      // Custom date range from params
+      start = new Date(startValue);
+      end = new Date(endValue);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+    } else if (startValue && typeof startValue === 'object' && startValue.start && startValue.end) {
+      // Object with start and end properties
+      start = new Date(startValue.start);
+      end = new Date(startValue.end);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+    } else {
+      // Default to current week
+      return getWeekRange();
+    }
+    
+    return { start, end };
+  };
+
   const parseReportDate = (value) => {
     if (!value) return null;
     const date = new Date(`${value}T00:00:00`);
@@ -49,12 +73,12 @@ export const useWeeklySummary = (role, apiBase) => {
     };
   };
 
-  const fetchWeeklySummary = useCallback(async () => {
+  const fetchWeeklySummary = useCallback(async (dateRange = null) => {
     if (role !== 'admin') return;
     setWeeklySummaryLoading(true);
     setWeeklySummaryError(null);
     try {
-      const { start, end } = getWeekRange();
+      const { start, end } = getDateRange(dateRange?.start, dateRange?.end);
       const filterByWeek = (report) => {
         const date = parseReportDate(report.fecha);
         if (!date) return false;
@@ -98,6 +122,14 @@ export const useWeeklySummary = (role, apiBase) => {
       const cleaningPlantReportsWeek = cleaningPlantList.filter(filterByWeek);
       const packagingReportsWeek = packagingList.filter(filterByWeek);
       const controlExpeditionReportsWeek = controlExpeditionList.filter(filterByWeek);
+
+      // Extract unique production types
+      const uniqueTypes = [...new Set(productionReportsWeek
+        .map(report => report.tipoProducto)
+        .filter(Boolean)
+        .map(type => type.toUpperCase())
+      )];
+      setProductionTypes(uniqueTypes);
 
       const normalizeEnvase = (value) => String(value || '').toUpperCase().replace(/\s+/g, ' ').trim();
       const getWeightAverage = (report) => {
@@ -285,6 +317,7 @@ export const useWeeklySummary = (role, apiBase) => {
     weeklySummaryError,
     fetchWeeklySummary,
     formatDate,
+    productionTypes,
   };
 };
 

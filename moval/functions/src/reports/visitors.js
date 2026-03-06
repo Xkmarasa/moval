@@ -61,6 +61,8 @@ Firma: ${firmaInfo?.uploaded ? "Subida a Dropbox" : "No disponible"}`;
     dni: payload.dni || null,
     empresa: payload.empresa,
     motivoVisita: payload.motivoVisita,
+    haLeidoNormas: payload.haLeidoNormas || null,
+    firmaNombreVisitante: payload.firmaNombreVisitante || null,
     firmaInfo,
     texto: reportText,
     createdAt: now,

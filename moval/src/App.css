@@ -177,6 +177,32 @@ body {
   width: 100%;
   -webkit-overflow-scrolling: touch;
   position: relative;
+  /* Limit visible rows to approximately 10 */
+  max-height: 60vh;
+  overflow-y: auto;
+  /* Space for scrollbar at bottom */
+  padding-bottom: 14px;
+  margin-bottom: -14px;
+}
+
+/* Horizontal scrollbar styling - bottom */
+.records-table-wrapper::-webkit-scrollbar {
+  height: 12px;
+}
+
+.records-table-wrapper::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 6px;
+}
+
+.records-table-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 6px;
+  border: 2px solid #f1f5f9;
+}
+
+.records-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .records-table {
