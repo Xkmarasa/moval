@@ -315,111 +315,183 @@ const AdminPanel = ({ onLogout }) => {
         </div>
       </header>
 
-      <main className="dashboard">
-        <WorkerHistory 
-          adminRecords={adminRecords}
-          adminLoading={adminLoading}
-          adminError={adminError}
-          totalWorkedHours={totalWorkedHours}
-          onDeleteRecord={handleDeleteRecord}
-          onUpdateRecord={handleUpdateRecord}
-          setEditingRecord={setEditingRecord}
-        />
+      <main className="dashboard dashboard--admin">
+  <div className="dashboard-item dashboard-item--1">
+    <WorkerHistory 
+      adminRecords={adminRecords}
+      adminLoading={adminLoading}
+      adminError={adminError}
+      totalWorkedHours={totalWorkedHours}
+      onDeleteRecord={handleDeleteRecord}
+      onUpdateRecord={handleUpdateRecord}
+      setEditingRecord={setEditingRecord}
+    />
+  </div>
 
-        <ReportsManagement
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          reportsLoading={reportsLoading}
-          reportsError={reportsError}
-          toolReports={toolReports}
-          initialReports={initialReports}
-          packagingReports={packagingReports}
-          productionReports={productionReports}
-          weightReports={weightReports}
-          cleaningReports={cleaningReports}
-          cleaningPlantReports={cleaningPlantReports}
-          visitorsBookReports={visitorsBookReports}
-          witnessReports={witnessReports}
-          receptionExitReports={receptionExitReports}
-          controlResiduesReports={controlResiduesReports}
-          controlExpeditionReports={controlExpeditionReports}
-          controlAguaDiarioReports={controlAguaDiarioReports}
-          controlAguaSemanalReports={controlAguaSemanalReports}
-          controlAguaMensualReports={controlAguaMensualReports}
-          controlAguaTrimestralReports={controlAguaTrimestralReports}
-          satisfactionForms={satisfactionForms}
-          revisionReports={revisionReports}
-          onViewReport={(report) => { setSelectedReport(report); setSelectedReportType(activeTab); }}
-          onEditReport={() => {}}
-          onDeleteReport={handleDeleteReport}
-          fetchReportsByType={fetchReportsByType}
-        />
+  <div className="dashboard-item dashboard-item--2">
+    <ReportsManagement
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      reportsLoading={reportsLoading}
+      reportsError={reportsError}
+      toolReports={toolReports}
+      initialReports={initialReports}
+      packagingReports={packagingReports}
+      productionReports={productionReports}
+      weightReports={weightReports}
+      cleaningReports={cleaningReports}
+      cleaningPlantReports={cleaningPlantReports}
+      visitorsBookReports={visitorsBookReports}
+      witnessReports={witnessReports}
+      receptionExitReports={receptionExitReports}
+      controlResiduesReports={controlResiduesReports}
+      controlExpeditionReports={controlExpeditionReports}
+      controlAguaDiarioReports={controlAguaDiarioReports}
+      controlAguaSemanalReports={controlAguaSemanalReports}
+      controlAguaMensualReports={controlAguaMensualReports}
+      controlAguaTrimestralReports={controlAguaTrimestralReports}
+      satisfactionForms={satisfactionForms}
+      revisionReports={revisionReports}
+      onViewReport={(report) => { setSelectedReport(report); setSelectedReportType(activeTab); }}
+      onEditReport={() => {}}
+      onDeleteReport={handleDeleteReport}
+      fetchReportsByType={fetchReportsByType}
+    />
+  </div>
 
-        {activeTab !== 'limpieza_planta' && (
-          <section className="panel" style={{ border: '2px solid #012b5c', backgroundColor: '#f8fafc' }}>
-            <div className="panel__header">
-              <h2 style={{ color: '#012b5c', fontSize: '1.5rem' }}>🏭 Gestión de Limpieza Planta</h2>
-              <p>Visualiza, edita y elimina informes de limpieza organizados por zonas.</p>
-            </div>
-            <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap', padding: '1rem', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-              <div style={{ flex: '0 0 auto' }}>
-                <label htmlFor="limpieza-planta-zona-filter" style={{ display: 'block', marginBottom: '0.5rem', color: '#475569', fontWeight: '600' }}>Filtrar por zona</label>
-                <select id="limpieza-planta-zona-filter" value={limpiezaPlantaZonaFilter} onChange={(e) => setLimpiezaPlantaZonaFilter(e.target.value)} style={{ padding: '0.65rem 2rem 0.65rem 0.9rem', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#ffffff', color: '#0f172a', fontWeight: 500, minWidth: '140px', maxWidth: '200px', width: '100%', appearance: 'none', backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23012B5C%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.7rem center', backgroundSize: '0.65rem auto' }}>
-                  <option value="TODAS">Todas las zonas</option>
-                  {LIMPIEZA_PLANTA_ZONAS.map((zona) => (<option key={zona.id} value={zona.id}>{zona.nombre}</option>))}
-                </select>
-              </div>
-              <div>
-                <button type="button" className="dk-btn dk-btn--export" onClick={exportLimpiezaPlantaExcel} style={{ backgroundColor: '#012b5c', borderColor: '#012b5c' }}>📊 Exportar Excel</button>
-              </div>
-              <div style={{ marginLeft: 'auto', color: '#64748b', fontSize: '0.9rem' }}>
-                Mostrando: {limpiezaPlantaZonaFilter === 'TODAS' ? `${cleaningPlantReports.length} informes` : `${filteredCleaningPlantReports.length} informe(s)`}
-              </div>
-            </div>
-            {reportsLoading && <p>Cargando informes de limpieza...</p>}
-            {reportsError && <div className="panel__error"><p>Error: {reportsError}</p><button type="button" className="dk-btn dk-btn--ghost" onClick={() => fetchReportsByType('limpieza_planta')}>Reintentar</button></div>}
-            {!reportsLoading && !reportsError && cleaningPlantReports.length > 0 && (
-              <div className="records-table-wrapper">
-                <table className="records-table">
-                  <thead><tr><th>Empleado</th><th>Fecha</th><th>Hora</th><th>Zona</th><th>Periodo</th><th>Completada</th><th style={{ minWidth: '250px' }}>Acciones</th></tr></thead>
-                  <tbody>
-                    {filteredCleaningPlantReports.map((report) => (
-                      <tr key={report.id}>
-                        <td>{report.employee_id}</td><td>{report.fecha}</td><td>{report.hora}</td><td>{report.zonaNombre || report.zona || '-'}</td><td>{report.periodo || 'SEMANAL'}</td>
-                        <td><span style={{ color: report.limpiezaCompletada ? '#10b981' : '#ef4444', fontWeight: '600' }}>{report.limpiezaCompletada ? '✅ Sí' : '❌ No'}</span></td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                            <button type="button" className="dk-btn dk-btn--ghost" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', minWidth: '85px', backgroundColor: '#ffffff', border: '2px solid rgba(13, 34, 66, 0.3)', fontWeight: '600' }} onClick={() => { setSelectedReport(report); setSelectedReportType('limpieza_planta'); }}>👁️ Ver</button>
-                            <button type="button" className="dk-btn dk-btn--ghost" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', color: '#c62828', borderColor: '#c62828', borderWidth: '2px', minWidth: '85px', backgroundColor: '#ffffff', fontWeight: '600' }} onClick={() => { setDeletingReportId(report.id); setDeletingReportType('limpieza_planta'); }}>🗑️ Eliminar</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
+  {activeTab !== 'limpieza_planta' && (
+    <div className="dashboard-item dashboard-item--3">
+      <section className="panel" style={{ border: '2px solid #012b5c', backgroundColor: '#f8fafc' }}>
+        <div className="panel__header">
+          <h2 style={{ color: '#012b5c', fontSize: '1.5rem' }}>🏭 Gestión de Limpieza Planta</h2>
+          <p>Visualiza, edita y elimina informes de limpieza organizados por zonas.</p>
+        </div>
+
+        <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap', padding: '1rem', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+          <div style={{ flex: '0 0 auto' }}>
+            <label htmlFor="limpieza-planta-zona-filter" style={{ display: 'block', marginBottom: '0.5rem', color: '#475569', fontWeight: '600' }}>
+              Filtrar por zona
+            </label>
+            <select
+              id="limpieza-planta-zona-filter"
+              value={limpiezaPlantaZonaFilter}
+              onChange={(e) => setLimpiezaPlantaZonaFilter(e.target.value)}
+              style={{ padding: '0.65rem 2rem 0.65rem 0.9rem', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#ffffff', color: '#0f172a', fontWeight: 500, minWidth: '140px', maxWidth: '200px', width: '100%', appearance: 'none', backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23012B5C%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.7rem center', backgroundSize: '0.65rem auto' }}
+            >
+              <option value="TODAS">Todas las zonas</option>
+              {LIMPIEZA_PLANTA_ZONAS.map((zona) => (
+                <option key={zona.id} value={zona.id}>{zona.nombre}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <button
+              type="button"
+              className="dk-btn dk-btn--export"
+              onClick={exportLimpiezaPlantaExcel}
+              style={{ backgroundColor: '#012b5c', borderColor: '#012b5c' }}
+            >
+              📊 Exportar Excel
+            </button>
+          </div>
+
+          <div style={{ marginLeft: 'auto', color: '#64748b', fontSize: '0.9rem' }}>
+            Mostrando: {limpiezaPlantaZonaFilter === 'TODAS'
+              ? `${cleaningPlantReports.length} informes`
+              : `${filteredCleaningPlantReports.length} informe(s)`}
+          </div>
+        </div>
+
+        {reportsLoading && <p>Cargando informes de limpieza...</p>}
+        {reportsError && (
+          <div className="panel__error">
+            <p>Error: {reportsError}</p>
+            <button type="button" className="dk-btn dk-btn--ghost" onClick={() => fetchReportsByType('limpieza_planta')}>
+              Reintentar
+            </button>
+          </div>
         )}
 
-        <WeeklySummary
-          weeklySummaryRows={weeklySummaryRows}
-          weeklySummaryMeta={weeklySummaryMeta}
-          weeklySummaryLoading={weeklySummaryLoading}
-          weeklySummaryError={weeklySummaryError}
-          fetchWeeklySummary={fetchWeeklySummary}
-          formatDate={formatDate}
-          productionTypes={productionTypes}
-        />
+        {!reportsLoading && !reportsError && cleaningPlantReports.length > 0 && (
+          <div className="records-table-wrapper">
+            <table className="records-table">
+              <thead>
+                <tr>
+                  <th>Empleado</th>
+                  <th>Fecha</th>
+                  <th>Hora</th>
+                  <th>Zona</th>
+                  <th>Periodo</th>
+                  <th>Completada</th>
+                  <th style={{ minWidth: '250px' }}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredCleaningPlantReports.map((report) => (
+                  <tr key={report.id}>
+                    <td>{report.employee_id}</td>
+                    <td>{report.fecha}</td>
+                    <td>{report.hora}</td>
+                    <td>{report.zonaNombre || report.zona || '-'}</td>
+                    <td>{report.periodo || 'SEMANAL'}</td>
+                    <td>
+                      <span style={{ color: report.limpiezaCompletada ? '#10b981' : '#ef4444', fontWeight: '600' }}>
+                        {report.limpiezaCompletada ? '✅ Sí' : '❌ No'}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className="dk-btn dk-btn--ghost"
+                          style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', minWidth: '85px', backgroundColor: '#ffffff', border: '2px solid rgba(13, 34, 66, 0.3)', fontWeight: '600' }}
+                          onClick={() => { setSelectedReport(report); setSelectedReportType('limpieza_planta'); }}
+                        >
+                          👁️ Ver
+                        </button>
+                        <button
+                          type="button"
+                          className="dk-btn dk-btn--ghost"
+                          style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', color: '#c62828', borderColor: '#c62828', borderWidth: '2px', minWidth: '85px', backgroundColor: '#ffffff', fontWeight: '600' }}
+                          onClick={() => { setDeletingReportId(report.id); setDeletingReportType('limpieza_planta'); }}
+                        >
+                          🗑️ Eliminar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </div>
+  )}
 
-        <PendingRecords 
-          pendingRecords={pendingRecords}
-          adminLoading={adminLoading}
-          adminError={adminError}
-          onDeleteRecord={handleDeleteRecord}
-          setEditingRecord={setEditingRecord}
-        />
-      </main>
+  <div className={`dashboard-item ${activeTab !== 'limpieza_planta' ? 'dashboard-item--4' : 'dashboard-item--3 dashboard-item--wide'}`}>
+    <WeeklySummary
+      weeklySummaryRows={weeklySummaryRows}
+      weeklySummaryMeta={weeklySummaryMeta}
+      weeklySummaryLoading={weeklySummaryLoading}
+      weeklySummaryError={weeklySummaryError}
+      fetchWeeklySummary={fetchWeeklySummary}
+      formatDate={formatDate}
+      productionTypes={productionTypes}
+    />
+  </div>
+
+  <div className={`dashboard-item ${activeTab !== 'limpieza_planta' ? 'dashboard-item--5' : 'dashboard-item--4 dashboard-item--wide'}`}>
+    <PendingRecords 
+      pendingRecords={pendingRecords}
+      adminLoading={adminLoading}
+      adminError={adminError}
+      onDeleteRecord={handleDeleteRecord}
+      setEditingRecord={setEditingRecord}
+    />
+  </div>
+</main>
 
       <footer className="app-footer">
         <BrandLogo />

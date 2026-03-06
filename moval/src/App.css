@@ -108,11 +108,77 @@ body {
 .summary-card--warning strong {
   color: #fb9a8d;
 }
-
 .dashboard {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 1.5rem;
+}
+
+.dashboard--admin {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+}
+
+.dashboard--admin > * {
+  min-width: 0;
+}
+
+/* Fila 1: tres paneles */
+.dashboard--admin > *:nth-child(1) {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.dashboard--admin > *:nth-child(2) {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.dashboard--admin > *:nth-child(3) {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+/* Fila 2: dos paneles */
+.dashboard--admin > *:nth-child(4) {
+  grid-column: 1 / span 2;
+  grid-row: 2;
+}
+
+.dashboard--admin > *:nth-child(5) {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+/* Tablet */
+@media (max-width: 1200px) {
+  .dashboard--admin {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard--admin > *:nth-child(1),
+  .dashboard--admin > *:nth-child(2),
+  .dashboard--admin > *:nth-child(3),
+  .dashboard--admin > *:nth-child(4),
+  .dashboard--admin > *:nth-child(5) {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+
+/* Móvil */
+@media (max-width: 768px) {
+  .dashboard--admin {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard--admin > *:nth-child(1),
+  .dashboard--admin > *:nth-child(2),
+  .dashboard--admin > *:nth-child(3),
+  .dashboard--admin > *:nth-child(4),
+  .dashboard--admin > *:nth-child(5) {
+    grid-column: auto;
+    grid-row: auto;
+  }
 }
 
 .panel {
@@ -183,6 +249,9 @@ body {
   /* Space for scrollbar at bottom */
   padding-bottom: 14px;
   margin-bottom: -14px;
+  /* Space for scrollbar at top */
+  padding-top: 14px;
+  margin-top: -14px;
 }
 
 /* Horizontal scrollbar styling - bottom */
@@ -203,6 +272,15 @@ body {
 
 .records-table-wrapper::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* Top scrollbar styling */
+.records-table-wrapper::-webkit-scrollbar-track-piece {
+  background: #f1f5f9;
+}
+
+.records-table-wrapper::-webkit-scrollbar-corner {
+  background: #f1f5f9;
 }
 
 .records-table {

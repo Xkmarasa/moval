@@ -33,7 +33,23 @@ exports.createCleaningPlantReport = onRequest({secrets: [dropboxToken, dropboxRe
     } catch (e) { firmaResponsableInfo = {uploaded: false}; }
   }
 
-  const doc = {employee_id: String(employeeId).trim(), fecha: payload.fecha, hora: payload.hora, tipoInforme: "LIMPIEZA_PLANTA", zones: payload.zones || {}, firmaInfo, firmaResponsableInfo, createdAt: now, updatedAt: now};
+  const doc = {
+    employee_id: String(employeeId).trim(),
+    fecha: payload.fecha,
+    hora: payload.hora,
+    tipoInforme: "LIMPIEZA_PLANTA",
+    zona: payload.zona || null,
+    zonaNombre: payload.zonaNombre || null,
+    periodo: payload.periodo || null,
+    limpiezaCompletada: payload.limpiezaCompletada || false,
+    checklist: payload.checklist || [],
+    firmaNombreEmpleado: payload.firmaNombreEmpleado || null,
+    firmaNombreResponsable: payload.firmaNombreResponsable || null,
+    firmaInfo,
+    firmaResponsableInfo,
+    createdAt: now,
+    updatedAt: now
+  };
   const result = await db.collection(CLEANING_PLANT_REPORTS_COLLECTION).insertOne(doc);
   res.status(201).json({id: result.insertedId, success: true});
 }));

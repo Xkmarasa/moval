@@ -234,20 +234,20 @@ const endTime = new Date();
     {returnDocument: "after"},
   );
 
-  if (!update || !update.value) {
+  if (!update) {
     res.status(404).json({error: "ENTRY_NOT_FOUND_AFTER_UPDATE"});
     return;
   }
 
   res.json({
-    id: update.value._id,
-    employee_id: update.value.employee_id,
-    date: update.value.date,
-    check_in: update.value.check_in,
-    check_out: update.value.check_out,
-    worked_hours: update.value.worked_hours,
-    status: update.value.status,
-    notes: update.value.notes,
+    id: update._id,
+    employee_id: update.employee_id,
+    date: update.date,
+    check_in: update.check_in,
+    check_out: update.check_out,
+    worked_hours: update.worked_hours,
+    status: update.status,
+    notes: update.notes,
   });
 }));
 
