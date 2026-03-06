@@ -25,7 +25,7 @@ exports.createControlResiduesReport = onRequest({secrets: [dropboxToken, dropbox
     try {
       const fileName = `${payload.fecha}_${payload.nombreResponsable}.png`;
       const dropboxResult = await uploadFormularioSignatureFromDataUrl(payload.firmaImagenBase64, fileName, "CONTROL DE RESIDUOS");
-      firmaInfo = {uploaded: true, name: fileName, dropboxPath: dropboxResult.path_display};
+      firmaInfo = {uploaded: true, name: fileName, dropboxPath: dropboxResult.path_display, sharedLink: dropboxResult.sharedLink};
     } catch (e) { firmaInfo = {uploaded: false, error: e.message}; }
   }
 
@@ -38,9 +38,26 @@ exports.createControlResiduesReport = onRequest({secrets: [dropboxToken, dropbox
   res.status(201).json({id: result.insertedId, success: true});
 }));
 
-exports.listControlResiduesReports = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.listControlResiduesReports = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   const db = await getDb();
-  const reports = await db.collection(CONTROL_RESIDUES_COLLECTION).find({}).sort({createdAt: -1}).limit(200).toArray();
-  res.json(reports.map(r => ({id: r._id, employee_id: r.employee_id, fecha: r.fecha, hora: r.hora, paletsCarton: r.paletsCarton, paletsPlastico: r.paletsPlastico, paletsFilm: r.paletsFilm, nombreResponsable: r.nombreResponsable})));
+  const collection = db.collection(CONTROL_RESIDUES_COLLECTION);
+  const reports = await collection.find({}).sort({createdAt: -1}).limit(200).toArray();
+  
+  // Enrich reports with shared links for signatures
+  const enriched = await Promise.all(reports.map(async (report) => ({
+    id: report._id,
+    employee_id: report.employee_id,
+    fecha: report.fecha,
+    hora: report.hora,
+    paletsCarton: report.paletsCarton,
+    paletsPlastico: report.paletsPlastico,
+    paletsFilm: report.paletsFilm,
+    nombreResponsable: report.nombreResponsable,
+    firmaInfo: await ensureSharedLink(collection, report._id, report.firmaInfo),
+    createdAt: report.createdAt,
+    updatedAt: report.updatedAt,
+  })));
+  
+  res.json(enriched);
 }));
 

@@ -77,9 +77,22 @@ exports.listVisitorsBookReports = onRequest({secrets: [dropboxToken, dropboxRefr
   const collection = db.collection(VISITORS_BOOK_COLLECTION);
   const filter = employeeId ? {employee_id: employeeId} : {};
   const reports = await collection.find(filter).sort({createdAt: -1}).limit(parseInt(limit) || 200).toArray();
+  
   const enriched = await Promise.all(reports.map(async (r) => ({
-    id: r._id, employee_id: r.employee_id, fecha: r.fecha, horaEntrada: r.horaEntrada, horaSalida: r.horaSalida,
-    nombreApellidos: r.nombreApellidos, empresa: r.empresa, firmaInfo: await ensureSharedLink(collection, r._id, r.firmaInfo),
+    id: r._id,
+    employee_id: r.employee_id,
+    fecha: r.fecha,
+    horaEntrada: r.horaEntrada,
+    horaSalida: r.horaSalida,
+    nombreApellidos: r.nombreApellidos,
+    dni: r.dni,
+    empresa: r.empresa,
+    motivoVisita: r.motivoVisita,
+    haLeidoNormas: r.haLeidoNormas,
+    firmaNombreVisitante: r.firmaNombreVisitante,
+    firmaInfo: await ensureSharedLink(collection, r._id, r.firmaInfo),
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
   })));
   res.json(enriched);
 }));

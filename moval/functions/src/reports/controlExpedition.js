@@ -3,7 +3,7 @@
 const {onRequest} = require("firebase-functions/v2/https");
 const {withCors, normalizeBody} = require("../utils");
 const {getDb} = require("../database");
-const {deleteDropboxFileIfExists, uploadFormularioSignatureFromDataUrl} = require("../dropbox");
+const {deleteDropboxFileIfExists, uploadFormularioSignatureFromDataUrl, ensureSharedLink} = require("../dropbox");
 const {CONTROL_EXPEDICION_COLLECTION, dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret} = require("../config");
 const {ObjectId} = require("mongodb");
 
@@ -20,7 +20,7 @@ exports.createControlExpeditionReport = onRequest({secrets: [dropboxToken, dropb
     try {
       const fileName = `${payload.fecha}_${payload.responsable || employeeId}.png`;
       const result = await uploadFormularioSignatureFromDataUrl(payload.firmaImagenBase64, fileName, "CONTROL EXPEDICION");
-      firmaInfo = {uploaded: true, name: fileName, dropboxPath: result.path_display};
+      firmaInfo = {uploaded: true, name: fileName, dropboxPath: result.path_display, sharedLink: result.sharedLink};
     } catch (e) { firmaInfo = {uploaded: false}; }
   }
 
@@ -45,12 +45,34 @@ exports.createControlExpeditionReport = onRequest({secrets: [dropboxToken, dropb
   res.status(201).json({id: result.insertedId, success: true});
 }));
 
-exports.listControlExpeditionReports = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.listControlExpeditionReports = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   const {limit = "200", employeeId} = req.query;
   const db = await getDb();
+  const collection = db.collection(CONTROL_EXPEDICION_COLLECTION);
   const filter = employeeId ? {employee_id: employeeId} : {};
-  const reports = await db.collection(CONTROL_EXPEDICION_COLLECTION).find(filter).sort({createdAt: -1}).limit(parseInt(limit) || 200).toArray();
-  res.json(reports);
+  const reports = await collection.find(filter).sort({createdAt: -1}).limit(parseInt(limit) || 200).toArray();
+  
+  // Enrich reports with shared links for signatures and all form fields
+  const enriched = await Promise.all(reports.map(async (report) => ({
+    id: report._id,
+    employee_id: report.employee_id,
+    fecha: report.fecha,
+    hora: report.hora || '',
+    producto: report.producto || '',
+    lote: report.lote || '',
+    numeroPalet: report.numeroPalet || '',
+    cajasSueltas: report.cajasSueltas || '',
+    paletIntegro: report.paletIntegro || '',
+    flejadoOK: report.flejadoOK || '',
+    etiquetaCorrecta: report.etiquetaCorrecta || '',
+    conteoCorrecto: report.conteoCorrecto || '',
+    responsable: report.responsable || '',
+    firmaInfo: await ensureSharedLink(collection, report._id, report.firmaInfo),
+    createdAt: report.createdAt,
+    updatedAt: report.updatedAt,
+  })));
+  
+  res.json(enriched);
 }));
 
 exports.updateControlExpeditionReport = onRequest(withCors(async (req, res) => {

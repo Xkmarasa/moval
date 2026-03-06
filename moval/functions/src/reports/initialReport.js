@@ -3,7 +3,7 @@
 const {onRequest} = require("firebase-functions/v2/https");
 const {withCors, normalizeBody} = require("../utils");
 const {getDb} = require("../database");
-const {deleteDropboxFileIfExists, uploadFormularioSignatureFromDataUrl} = require("../dropbox");
+const {deleteDropboxFileIfExists, uploadFormularioSignatureFromDataUrl, ensureSharedLink} = require("../dropbox");
 const {INITIAL_REPORTS_COLLECTION, dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret} = require("../config");
 const {ObjectId} = require("mongodb");
 
@@ -20,7 +20,7 @@ exports.createInitialReport = onRequest({secrets: [dropboxToken, dropboxRefreshT
     try {
       const fileName = `${payload.fecha}_${employeeId}.png`;
       const result = await uploadFormularioSignatureFromDataUrl(payload.firmaImagenBase64, fileName, "INICIAL");
-      firmaInfo = {uploaded: true, name: fileName, dropboxPath: result.path_display};
+      firmaInfo = {uploaded: true, name: fileName, dropboxPath: result.path_display, sharedLink: result.sharedLink};
     } catch (e) { firmaInfo = {uploaded: false, error: e.message}; }
   }
 
@@ -34,12 +34,31 @@ exports.createInitialReport = onRequest({secrets: [dropboxToken, dropboxRefreshT
   res.status(201).json({id: result.insertedId, success: true});
 }));
 
-exports.listInitialReports = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.listInitialReports = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   const {limit = "200", employeeId} = req.query;
   const db = await getDb();
+  const collection = db.collection(INITIAL_REPORTS_COLLECTION);
   const filter = employeeId ? {employee_id: employeeId} : {};
-  const reports = await db.collection(INITIAL_REPORTS_COLLECTION).find(filter).sort({createdAt: -1}).limit(parseInt(limit) || 200).toArray();
-  res.json(reports);
+  const reports = await collection.find(filter).sort({createdAt: -1}).limit(parseInt(limit) || 200).toArray();
+  
+  // Enrich reports with shared links for signatures
+  const enriched = await Promise.all(reports.map(async (report) => ({
+    id: report._id,
+    employee_id: report.employee_id,
+    fecha: report.fecha,
+    hora: report.hora,
+    instalacionesLimpias: report.instalacionesLimpias,
+    manipuladoresUniformados: report.manipuladoresUniformados,
+    peloProtegido: report.peloProtegido,
+    unasLimpias: report.unasLimpias,
+    elementosTamiz: report.elementosTamiz,
+    calibracionPHMetro: report.calibracionPHMetro,
+    firmaInfo: await ensureSharedLink(collection, report._id, report.firmaInfo),
+    createdAt: report.createdAt,
+    updatedAt: report.updatedAt,
+  })));
+  
+  res.json(enriched);
 }));
 
 exports.updateInitialReport = onRequest(withCors(async (req, res) => {

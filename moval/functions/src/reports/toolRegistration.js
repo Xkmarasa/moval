@@ -3,7 +3,7 @@
 const {onRequest} = require("firebase-functions/v2/https");
 const {withCors, normalizeBody} = require("../utils");
 const {getDb} = require("../database");
-const {deleteDropboxFileIfExists, uploadToolSignatureFromDataUrl, uploadToolImageFromBuffer} = require("../dropbox");
+const {deleteDropboxFileIfExists, uploadToolSignatureFromDataUrl, uploadToolImageFromBuffer, ensureSharedLink} = require("../dropbox");
 const {TOOLS_COLLECTION, dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret} = require("../config");
 const {ObjectId} = require("mongodb");
 const logger = require("firebase-functions/logger");
@@ -282,18 +282,25 @@ exports.createToolReport = onRequest({secrets: [dropboxToken, dropboxRefreshToke
 exports.listToolReports = onRequest({secrets: []}, withCors(async (req, res) => {
   const {limit = "200", tipoRegistro, kit} = req.query;
   const db = await getDb();
+  const collection = db.collection(TOOLS_COLLECTION);
   
   const filter = {};
   if (tipoRegistro) filter.tipoRegistro = tipoRegistro;
   if (kit) filter.kit = kit;
   
-  const reports = await db.collection(TOOLS_COLLECTION)
+  const reports = await collection
     .find(filter)
     .sort({createdAt: -1})
     .limit(parseInt(limit) || 200)
     .toArray();
     
-  res.json(reports);
+  // Enrich reports with shared links for signatures
+  const enriched = await Promise.all(reports.map(async (report) => ({
+    ...report,
+    firmaInfo: await ensureSharedLink(collection, report._id, report.firmaInfo),
+  })));
+    
+  res.json(enriched);
 }));
 
 exports.updateToolReport = onRequest(withCors(async (req, res) => {

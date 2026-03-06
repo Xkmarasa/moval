@@ -3,7 +3,7 @@
 const {onRequest} = require("firebase-functions/v2/https");
 const {withCors, normalizeBody} = require("../utils");
 const {getDb} = require("../database");
-const {deleteDropboxFileIfExists, uploadFormularioSignatureFromDataUrl} = require("../dropbox");
+const {deleteDropboxFileIfExists, uploadFormularioSignatureFromDataUrl, ensureSharedLink} = require("../dropbox");
 const {PRODUCTION_REPORTS_COLLECTION, dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret} = require("../config");
 const {ObjectId} = require("mongodb");
 
@@ -20,7 +20,7 @@ exports.createProductionReport = onRequest({secrets: [dropboxToken, dropboxRefre
     try {
       const fileName = `${payload.fecha}_${employeeId}.png`;
       const dropboxResult = await uploadFormularioSignatureFromDataUrl(payload.firmaImagenBase64, fileName, "PRODUCCION");
-      firmaInfo = {uploaded: true, name: fileName, dropboxPath: dropboxResult.path_display};
+      firmaInfo = {uploaded: true, name: fileName, dropboxPath: dropboxResult.path_display, sharedLink: dropboxResult.sharedLink};
     } catch (e) { firmaInfo = {uploaded: false}; }
   }
 
@@ -34,10 +34,31 @@ exports.createProductionReport = onRequest({secrets: [dropboxToken, dropboxRefre
   res.status(201).json({id: result.insertedId, success: true});
 }));
 
-exports.listProductionReports = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.listProductionReports = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   const db = await getDb();
-  const reports = await db.collection(PRODUCTION_REPORTS_COLLECTION).find({}).sort({createdAt: -1}).limit(200).toArray();
-  res.json(reports.map(r => ({id: r._id, employee_id: r.employee_id, fecha: r.fecha, hora: r.hora, tipoProducto: r.tipoProducto, phPcc2: r.phPcc2})));
+  const collection = db.collection(PRODUCTION_REPORTS_COLLECTION);
+  const reports = await collection.find({}).sort({createdAt: -1}).limit(200).toArray();
+  
+  // Enrich reports with shared links for signatures and all form fields
+  const enriched = await Promise.all(reports.map(async (report) => ({
+    id: report._id,
+    employee_id: report.employee_id,
+    fecha: report.fecha,
+    hora: report.hora,
+    tipoProducto: report.tipoProducto,
+    color: report.color,
+    olor: report.olor,
+    sabor: report.sabor,
+    textura: report.textura,
+    phPcc2: report.phPcc2,
+    numeroCampana: report.numeroCampana,
+    checklistComponentes: report.checklistComponentes || report.checklist,
+    firmaInfo: await ensureSharedLink(collection, report._id, report.firmaInfo),
+    createdAt: report.createdAt,
+    updatedAt: report.updatedAt,
+  })));
+  
+  res.json(enriched);
 }));
 
 exports.deleteProductionReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {

@@ -323,10 +323,10 @@ async function createDropboxSharedLink(dropboxPath) {
     }
 
     const errorText = await shareResponse.text();
-    logger.warn("No se pudo crear enlace compartido", {status: shareResponse.status, errorText});
+    logger.warn("No se pudo crear enlace compartido", {status: shareResponse.status, errorText, dropboxPath});
 
     // Intentar con list_shared_links si falla
-    if (shareResponse.status === 403 || errorText.includes("not permitted") || errorText.includes("scope")) {
+    if (shareResponse.status === 403 || errorText.includes("not permitted") || errorText.includes("scope") || errorText.includes("shared_link_already_exists")) {
       try {
         const listResponse = await fetch("https://api.dropboxapi.com/2/sharing/list_shared_links", {
           method: "POST",
@@ -345,26 +345,45 @@ async function createDropboxSharedLink(dropboxPath) {
           }
         }
       } catch (listError) {
-        logger.warn("Error obteniendo enlace compartido existente", {error: listError.message});
+        logger.warn("Error obteniendo enlace compartido existente", {error: listError.message, dropboxPath});
       }
     }
+    
+    // Lanzar error para que el caller use el fallback
+    throw new Error(`No se pudo crear sharedLink para ${dropboxPath}: ${errorText}`);
   } catch (error) {
     logger.warn("Error creando enlace compartido", {error: error.message, dropboxPath});
+    throw error; // Re-lanzar para que el caller use el fallback
   }
-
-  return "";
 }
 
 // Asegura que un archivo tenga un enlace compartido
 async function ensureSharedLink(collection, reportId, firmaInfo, fieldName = "firmaInfo") {
-  if (!firmaInfo || firmaInfo.sharedLink || !firmaInfo.dropboxPath) {
+  if (!firmaInfo || !firmaInfo.dropboxPath) {
     return firmaInfo;
   }
-  const sharedLink = await createDropboxSharedLink(firmaInfo.dropboxPath);
-  if (!sharedLink) {
+  
+  // Si ya tiene sharedLink, retornarlo
+  if (firmaInfo.sharedLink) {
     return firmaInfo;
+  }
+  
+  // Intentar crear el sharedLink
+  let sharedLink = "";
+  try {
+    sharedLink = await createDropboxSharedLink(firmaInfo.dropboxPath);
+  } catch (error) {
+    logger.warn("Error en ensureSharedLink creando sharedLink", {error: error.message, dropboxPath: firmaInfo.dropboxPath});
+    // Usar fallback
+    sharedLink = `https://www.dropbox.com/home${encodeURI(firmaInfo.dropboxPath)}`;
+  }
+  
+  if (!sharedLink) {
+    // Fallback final
+    sharedLink = `https://www.dropbox.com/home${encodeURI(firmaInfo.dropboxPath)}`;
   }
 
+  // Actualizar en la base de datos
   await collection.updateOne(
     {_id: reportId},
     {$set: {[fieldName + ".sharedLink"]: sharedLink, updatedAt: new Date()}}

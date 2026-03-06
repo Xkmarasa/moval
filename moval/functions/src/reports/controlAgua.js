@@ -36,10 +36,26 @@ exports.createControlAguaDiarioReport = onRequest({secrets: [dropboxToken, dropb
   res.status(201).json({id: result.insertedId, success: true});
 }));
 
-exports.listControlAguaDiarioReports = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.listControlAguaDiarioReports = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   const db = await getDb();
-  const reports = await db.collection(CONTROL_AGUA_DIARIO_COLLECTION).find({}).sort({createdAt: -1}).limit(200).toArray();
-  res.json(reports.map(r => ({id: r._id, fecha: r.fecha, hora: r.hora, temperaturaCalentador: r.temperaturaCalentador, cloroDeposito: r.cloroDeposito, phDeposito: r.phDeposito})));
+  const collection = db.collection(CONTROL_AGUA_DIARIO_COLLECTION);
+  const reports = await collection.find({}).sort({createdAt: -1}).limit(200).toArray();
+  
+  // Enrich reports with shared links for signatures
+  const enriched = await Promise.all(reports.map(async (report) => ({
+    id: report._id,
+    employee_id: report.employee_id,
+    fecha: report.fecha,
+    hora: report.hora,
+    temperaturaCalentador: report.temperaturaCalentador,
+    cloroDeposito: report.cloroDeposito,
+    phDeposito: report.phDeposito,
+    firmaInfo: await ensureSharedLink(collection, report._id, report.firmaInfo),
+    createdAt: report.createdAt,
+    updatedAt: report.updatedAt,
+  })));
+  
+  res.json(enriched);
 }));
 
 exports.deleteControlAguaDiarioReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
@@ -83,7 +99,7 @@ exports.createControlAguaSemanalReport = onRequest({secrets: [dropboxToken, drop
     try {
       const fileName = `${payload.fecha}_${employeeId}.png`;
       const dropboxResult = await uploadFormularioSignatureFromDataUrl(payload.firmaImagenBase64, fileName, "CONTROL AGUA/SEMANAL");
-      firmaInfo = {uploaded: true, name: fileName, dropboxPath: dropboxResult.path_display};
+      firmaInfo = {uploaded: true, name: fileName, dropboxPath: dropboxResult.path_display, sharedLink: dropboxResult.sharedLink};
     } catch (e) { firmaInfo = {uploaded: false}; }
   }
   const doc = {employee_id: String(employeeId).trim(), fecha: payload.fecha, hora: payload.hora, tipoInforme: "CONTROL_AGUA_SEMANAL", turbidezCalentador: payload.turbidezCalentador, turbidezDeposito: payload.turbidezDeposito, firmaInfo, createdAt: now};
@@ -91,10 +107,27 @@ exports.createControlAguaSemanalReport = onRequest({secrets: [dropboxToken, drop
   res.status(201).json({id: result.insertedId, success: true});
 }));
 
-exports.listControlAguaSemanalReports = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.listControlAguaSemanalReports = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   const db = await getDb();
-  const reports = await db.collection(CONTROL_AGUA_SEMANAL_COLLECTION).find({}).sort({createdAt: -1}).limit(200).toArray();
-  res.json(reports);
+  const collection = db.collection(CONTROL_AGUA_SEMANAL_COLLECTION);
+  const reports = await collection.find({}).sort({createdAt: -1}).limit(200).toArray();
+  
+  // Enrich reports with shared links for signatures
+  const enriched = await Promise.all(reports.map(async (report) => ({
+    id: report._id,
+    employee_id: report.employee_id,
+    fecha: report.fecha,
+    hora: report.hora,
+    turbidezCalentador: report.turbidezCalentador,
+    turbidezDeposito: report.turbidezDeposito,
+    purgaPuntos: report.purgaPuntos,
+    turbidezPuntos: report.turbidezPuntos,
+    firmaInfo: await ensureSharedLink(collection, report._id, report.firmaInfo),
+    createdAt: report.createdAt,
+    updatedAt: report.updatedAt,
+  })));
+  
+  res.json(enriched);
 }));
 
 exports.deleteControlAguaSemanalReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
@@ -135,7 +168,7 @@ exports.createControlAguaMensualReport = onRequest({secrets: [dropboxToken, drop
     try {
       const fileName = `${payload.fecha}_${employeeId}.png`;
       const dropboxResult = await uploadFormularioSignatureFromDataUrl(payload.firmaImagenBase64, fileName, "CONTROL AGUA/MENSUAL");
-      firmaInfo = {uploaded: true, name: fileName, dropboxPath: dropboxResult.path_display};
+      firmaInfo = {uploaded: true, name: fileName, dropboxPath: dropboxResult.path_display, sharedLink: dropboxResult.sharedLink};
     } catch (e) { firmaInfo = {uploaded: false}; }
   }
   const doc = {employee_id: String(employeeId).trim(), fecha: payload.fecha, hora: payload.hora, tipoInforme: "CONTROL_AGUA_MENSUAL", suciedadCorrosion: payload.suciedadCorrosion, tempFria: payload.tempFria, tempCaliente: payload.tempCaliente, firmaInfo, createdAt: now};
@@ -143,10 +176,27 @@ exports.createControlAguaMensualReport = onRequest({secrets: [dropboxToken, drop
   res.status(201).json({id: result.insertedId, success: true});
 }));
 
-exports.listControlAguaMensualReports = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.listControlAguaMensualReports = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   const db = await getDb();
-  const reports = await db.collection(CONTROL_AGUA_MENSUAL_COLLECTION).find({}).sort({createdAt: -1}).limit(200).toArray();
-  res.json(reports);
+  const collection = db.collection(CONTROL_AGUA_MENSUAL_COLLECTION);
+  const reports = await collection.find({}).sort({createdAt: -1}).limit(200).toArray();
+  
+  // Enrich reports with shared links for signatures
+  const enriched = await Promise.all(reports.map(async (report) => ({
+    id: report._id,
+    employee_id: report.employee_id,
+    fecha: report.fecha,
+    hora: report.hora,
+    suciedadCorrosion: report.suciedadCorrosion,
+    tempFria: report.tempFria,
+    tempCaliente: report.tempCaliente,
+    cloroPuntos: report.cloroPuntos,
+    firmaInfo: await ensureSharedLink(collection, report._id, report.firmaInfo),
+    createdAt: report.createdAt,
+    updatedAt: report.updatedAt,
+  })));
+  
+  res.json(enriched);
 }));
 
 exports.deleteControlAguaMensualReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
@@ -188,7 +238,7 @@ exports.createControlAguaTrimestralReport = onRequest({secrets: [dropboxToken, d
     try {
       const fileName = `${payload.fecha}_${employeeId}.png`;
       const dropboxResult = await uploadFormularioSignatureFromDataUrl(payload.firmaImagenBase64, fileName, "CONTROL AGUA/TRIMESTRAL");
-      firmaInfo = {uploaded: true, name: fileName, dropboxPath: dropboxResult.path_display};
+      firmaInfo = {uploaded: true, name: fileName, dropboxPath: dropboxResult.path_display, sharedLink: dropboxResult.sharedLink};
     } catch (e) { firmaInfo = {uploaded: false}; }
   }
   const doc = {employee_id: String(employeeId).trim(), fecha: payload.fecha, hora: payload.hora, tipoInforme: "CONTROL_AGUA_TRIMESTRAL", suciedadCorrosion: payload.suciedadCorrosion, firmaInfo, createdAt: now};
@@ -196,10 +246,24 @@ exports.createControlAguaTrimestralReport = onRequest({secrets: [dropboxToken, d
   res.status(201).json({id: result.insertedId, success: true});
 }));
 
-exports.listControlAguaTrimestralReports = onRequest({secrets: []}, withCors(async (req, res) => {
+exports.listControlAguaTrimestralReports = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   const db = await getDb();
-  const reports = await db.collection(CONTROL_AGUA_TRIMESTRAL_COLLECTION).find({}).sort({createdAt: -1}).limit(200).toArray();
-  res.json(reports);
+  const collection = db.collection(CONTROL_AGUA_TRIMESTRAL_COLLECTION);
+  const reports = await collection.find({}).sort({createdAt: -1}).limit(200).toArray();
+  
+  // Enrich reports with shared links for signatures
+  const enriched = await Promise.all(reports.map(async (report) => ({
+    id: report._id,
+    employee_id: report.employee_id,
+    fecha: report.fecha,
+    hora: report.hora,
+    suciedadCorrosion: report.suciedadCorrosion,
+    firmaInfo: await ensureSharedLink(collection, report._id, report.firmaInfo),
+    createdAt: report.createdAt,
+    updatedAt: report.updatedAt,
+  })));
+  
+  res.json(enriched);
 }));
 
 exports.deleteControlAguaTrimestralReport = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {

@@ -23,7 +23,7 @@ exports.createCleaningReport = onRequest({secrets: [dropboxToken, dropboxRefresh
     try {
       const fileName = `${payload.fecha}_${employeeId}.png`;
       const dropboxResult = await uploadFormularioSignatureFromDataUrl(payload.firmaImagenBase64, fileName, "LIMPIEZA");
-      firmaInfo = {uploaded: true, name: fileName, dropboxPath: dropboxResult.path_display};
+      firmaInfo = {uploaded: true, name: fileName, dropboxPath: dropboxResult.path_display, sharedLink: dropboxResult.sharedLink};
     } catch (e) { firmaInfo = {uploaded: false, error: e.message}; }
   }
 
@@ -40,10 +40,23 @@ exports.createCleaningReport = onRequest({secrets: [dropboxToken, dropboxRefresh
 
 exports.listCleaningReports = onRequest({secrets: [dropboxToken, dropboxRefreshToken, dropboxAppKey, dropboxAppSecret]}, withCors(async (req, res) => {
   const db = await getDb();
-  const reports = await db.collection(CLEANING_REPORTS_COLLECTION).find({}).sort({createdAt: -1}).limit(200).toArray();
+  const collection = db.collection(CLEANING_REPORTS_COLLECTION);
+  const reports = await collection.find({}).sort({createdAt: -1}).limit(200).toArray();
+  
+  // Enrich reports with shared links for signatures and all form fields
   const enriched = await Promise.all(reports.map(async (r) => ({
-    id: r._id, employee_id: r.employee_id, fecha: r.fecha, hora: r.hora, controlSuperficies: r.controlSuperficies,
-    firmaInfo: await ensureSharedLink(db.collection(CLEANING_REPORTS_COLLECTION), r._id, r.firmaInfo),
+    id: r._id, 
+    employee_id: r.employee_id, 
+    fecha: r.fecha, 
+    hora: r.hora, 
+    controlSuperficies: r.controlSuperficies,
+    desengrasantePorLitro: r.desengrasantePorLitro,
+    desinfectantePorLitro: r.desinfectantePorLitro,
+    phAclarado: r.phAclarado,
+    phGrifo: r.phGrifo,
+    firmaInfo: await ensureSharedLink(collection, r._id, r.firmaInfo),
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
   })));
   res.json(enriched);
 }));

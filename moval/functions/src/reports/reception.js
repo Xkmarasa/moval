@@ -1,4 +1,4 @@
-/* eslint-disable require-jsdoc */
+﻿/* eslint-disable require-jsdoc */
 // Informes de Recepción y Salida de Mercancía
 const {onRequest} = require("firebase-functions/v2/https");
 const {withCors, normalizeBody} = require("../utils");
@@ -40,10 +40,12 @@ Aceptado: ${payload.aceptado}`;
 
   const doc = {
     employee_id: String(employeeId).trim(), tipoMovimiento: payload.tipoMovimiento, empresa: payload.empresa,
-    nombreTransportista: payload.nombreTransportista, fecha: payload.fecha, producto: payload.producto,
-    identificacionProducto: payload.identificacionProducto, estadoCajas: payload.estadoCajas, higieneCamion: payload.higieneCamion,
-    estadoPalets: payload.estadoPalets, aceptado: payload.aceptado, quienRecepciona: payload.quienRecepciona,
-    nombreConductor: payload.nombreConductor, firmaInfo, texto: reportText, createdAt: now, updatedAt: now,
+    nombreTransportista: payload.nombreTransportista, dniMatricula: payload.dniMatricula || '', fecha: payload.fecha, hora: payload.hora || '',
+    producto: payload.producto, identificacionProducto: payload.identificacionProducto, estadoCajas: payload.estadoCajas,
+    bultos: payload.bultos || '', palets: payload.palets || '', temperatura: payload.temperatura || '',
+    higieneCamion: payload.higieneCamion, estadoPalets: payload.estadoPalets, aceptado: payload.aceptado, 
+    quienRecepciona: payload.quienRecepciona, nombreConductor: payload.nombreConductor, 
+    numeroAlbaran: payload.numeroAlbaran || '', firmaInfo, texto: reportText, createdAt: now, updatedAt: now,
   };
 
   const result = await collection.insertOne(doc);
@@ -56,9 +58,32 @@ exports.listReceptionExitReports = onRequest({secrets: [dropboxToken, dropboxRef
   const collection = db.collection(RECEPTION_EXIT_COLLECTION);
   const filter = employeeId ? {employee_id: employeeId} : {};
   const reports = await collection.find(filter).sort({createdAt: -1}).limit(parseInt(limit) || 200).toArray();
+  
+  // Enrich reports with shared links for signatures and all form fields
   const enriched = await Promise.all(reports.map(async (r) => ({
-    id: r._id, employee_id: r.employee_id, tipoMovimiento: r.tipoMovimiento, empresa: r.empresa,
-    producto: r.producto, aceptado: r.aceptado, firmaInfo: await ensureSharedLink(collection, r._id, r.firmaInfo),
+    id: r._id,
+    employee_id: r.employee_id,
+    tipoMovimiento: r.tipoMovimiento,
+    empresa: r.empresa,
+    nombreTransportista: r.nombreTransportista || '',
+    dniMatricula: r.dniMatricula || '',
+    fecha: r.fecha,
+    hora: r.hora || '',
+    producto: r.producto || '',
+    identificacionProducto: r.identificacionProducto || '',
+    estadoCajas: r.estadoCajas || '',
+    bultos: r.bultos || '',
+    palets: r.palets || '',
+    temperatura: r.temperatura || '',
+    higieneCamion: r.higieneCamion || '',
+    estadoPalets: r.estadoPalets || '',
+    aceptado: r.aceptado || '',
+    quienRecepciona: r.quienRecepciona || '',
+    nombreConductor: r.nombreConductor || '',
+    numeroAlbaran: r.numeroAlbaran || '',
+    firmaInfo: await ensureSharedLink(collection, r._id, r.firmaInfo),
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
   })));
   res.json(enriched);
 }));

@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle } from 'docx';
 
 const ReportsManagement = ({ 
   activeTab, 
@@ -29,6 +30,7 @@ const ReportsManagement = ({
   onDeleteReport,
   fetchReportsByType
 }) => {
+  const [selectedReportIndex, setSelectedReportIndex] = useState(null);
   const reportTabs = [
     { id: 'herramientas', label: '🔧 Herramientas' },
     { id: 'inicial', label: '📋 Inicial' },
@@ -54,7 +56,14 @@ const ReportsManagement = ({
     if (activeTab) {
       fetchReportsByType(activeTab);
     }
+    // Reset selection when changing tabs
+    setSelectedReportIndex(null);
   }, [activeTab, fetchReportsByType]);
+
+  // Also reset selection when reports data changes
+  useEffect(() => {
+    setSelectedReportIndex(null);
+  }, [toolReports, initialReports, packagingReports, productionReports, weightReports, cleaningReports, cleaningPlantReports, visitorsBookReports, witnessReports, receptionExitReports, controlResiduesReports, controlExpeditionReports, controlAguaDiarioReports, controlAguaSemanalReports, controlAguaMensualReports, controlAguaTrimestralReports, satisfactionForms, revisionReports]);
 
   const getReports = () => {
     switch (activeTab) {
@@ -120,6 +129,32 @@ const ReportsManagement = ({
   const getRevisionExcelData = (reports) => {
     return reports.map((report) => {
       const summary = report.conformitySummary || {};
+      
+      // Build detailed sections data as string
+      let sectionsData = '';
+      let puntosDetallados = '';
+      
+      if (report.sections && Array.isArray(report.sections)) {
+        report.sections.forEach((section) => {
+          const sectionTitle = section.title || '';
+          sectionsData += sectionTitle + '; ';
+          
+          if (section.points && Array.isArray(section.points)) {
+            section.points.forEach((point) => {
+              const label = point.label || '';
+              const value = point.value || point.estado || '';
+              const comments = point.comments || point.comentarios || '';
+              puntosDetallados += `${label}: ${value}${comments ? ' (' + comments + ')' : ''}; `;
+            });
+          }
+        });
+      }
+      
+      // Get all comments
+      const allComments = report.sections?.flatMap(s => 
+        s.points?.flatMap(p => p.comments || p.comentarios ? [`${p.label}: ${p.comments || p.comentarios}`] : []) || []
+      ).join(' | ') || '';
+      
       return {
         Empleado: report.employee_id || '',
         Fecha: report.fecha || '',
@@ -128,9 +163,13 @@ const ReportsManagement = ({
         Conforme: summary.conforme || 0,
         'No Conforme': summary.noConforme || 0,
         'N/A': summary.na || 0,
+        Secciones: sectionsData,
+        'Puntos Detallados': puntosDetallados,
+        Comentarios: allComments,
         'Firma Empleado': report.firmaInfo?.firmaEmpleado?.nombre || '',
         'URL Firma Empleado': report.firmaInfo?.firmaEmpleado?.url || '',
         'Firma Responsable': report.firmaInfo?.firmaResponsable?.nombre || '',
+        'Nombre Responsable': report.firmaNombreResponsable || '',
         'URL Firma Responsable': report.firmaInfo?.firmaResponsable?.url || '',
         'Fecha Creación': report.createdAt ? new Date(report.createdAt).toLocaleString() : '',
       };
@@ -154,6 +193,8 @@ const ReportsManagement = ({
           Hora: report.hora,
           Envase: report.envaseCantidad || '',
           Promedio: report.promedio ?? '',
+          Minimo: report.min ?? '',
+          Maximo: report.max ?? '',
           FirmaDropbox: report.firmaInfo?.sharedLink || '',
         };
         const pesos = Array.isArray(report.pesos) ? report.pesos : [];
@@ -209,9 +250,11 @@ const ReportsManagement = ({
         HoraEntrada: report.horaEntrada || '',
         HoraSalida: report.horaSalida || '',
         NombreApellidos: report.nombreApellidos || '',
+        DNI: report.dni || '',
         Empresa: report.empresa || '',
         MotivoVisita: report.motivoVisita || '',
         HaLeidoNormas: report.haLeidoNormas || '',
+        'Firma Visitante': report.firmaNombreVisitante || '',
         FirmaDropbox: report.firmaInfo?.sharedLink || '',
       }));
     } else if (activeTab === 'herramientas') {
@@ -416,6 +459,183 @@ const ReportsManagement = ({
     XLSX.writeFile(wb, `informes_${activeTab}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
+  // Export revision report to Word
+  const exportRevisionToWord = async (report) => {
+    if (!report) return;
+
+    const summary = report.conformitySummary || {};
+    const sections = report.sections || [];
+
+    // Helper function to create table cell
+    const createCell = (text, isBold = false, isHeader = false, bgColor = null) => {
+      return new TableCell({
+        children: [
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: text || '-',
+                bold: isBold,
+                font: isHeader ? 'Arial' : 'Calibri',
+                size: isHeader ? 24 : 22,
+              }),
+            ],
+          }),
+        ],
+        shading: bgColor ? { fill: bgColor } : undefined,
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
+          bottom: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
+          left: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
+          right: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
+        },
+      });
+    };
+
+    // Build table rows from sections
+    const tableRows = [
+      // Header row
+      new TableRow({
+        children: [
+          createCell('SECCIÓN', true, true, '012B5C'),
+          createCell('PUNTO A SUPERVISAR', true, true, '012B5C'),
+          createCell('CRITERIO DE ACEPTACIÓN', true, true, '012B5C'),
+          createCell('ESTADO', true, true, '012B5C'),
+          createCell('COMENTARIOS / ACCIÓN', true, true, '012B5C'),
+        ],
+      }),
+    ];
+
+    // Add data rows for each section
+    sections.forEach((section) => {
+      const sectionTitle = section.title || '';
+      const points = section.points || [];
+
+      points.forEach((point, pointIndex) => {
+        const estado = point.value || point.estado || '';
+        const comments = point.comments || point.comentarios || '';
+        
+        // Determine background color based on status
+        let bgColor = null;
+        if (estado === 'C') bgColor = 'DCFCE7'; // Green
+        else if (estado === 'NC') bgColor = 'FEE2E2'; // Red
+        else if (estado === 'NA') bgColor = 'F1F5F9'; // Gray
+
+        // For first point in section, show section title
+        const sectionCell = pointIndex === 0 
+          ? createCell(sectionTitle, false, false, bgColor)
+          : createCell('', false, false, bgColor);
+
+        tableRows.push(
+          new TableRow({
+            children: [
+              sectionCell,
+              createCell(point.label || '', false, false, bgColor),
+              createCell(point.criterio || point.criterion || '', false, false, bgColor),
+              createCell(estado, true, false, bgColor),
+              createCell(comments, false, false, bgColor),
+            ],
+          })
+        );
+      });
+    });
+
+    // Create the document
+    const doc = new Document({
+      sections: [
+        {
+          properties: {},
+          children: [
+            // Title
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: 'INFORME DE REVISIÓN',
+                  bold: true,
+                  size: 36,
+                  font: 'Arial',
+                }),
+              ],
+              alignment: AlignmentType.CENTER,
+            }),
+            new Paragraph({ text: '' }), // Empty line
+
+            // Report info
+            new Paragraph({
+              children: [
+                new TextRun({ text: 'Fecha: ', bold: true }),
+                new TextRun(report.fecha || '-'),
+              ],
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: 'Hora: ', bold: true }),
+                new TextRun(report.hora || '-'),
+              ],
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: 'Empleado: ', bold: true }),
+                new TextRun(report.employee_id || '-'),
+              ],
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: 'Firma Responsable: ', bold: true }),
+                new TextRun(report.firmaNombreResponsable || '-'),
+              ],
+            }),
+            new Paragraph({ text: '' }), // Empty line
+
+            // Summary
+            new Paragraph({
+              children: [
+                new TextRun({ text: 'RESUMEN DE CONFORMIDAD', bold: true, size: 24 }),
+              ],
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: `Total puntos: ${summary.total || 0}  |  ` }),
+                new TextRun({ text: `Conforme (C): ${summary.conforme || 0}  |  ` }),
+                new TextRun({ text: `No Conforme (NC): ${summary.noConforme || 0}  |  ` }),
+                new TextRun({ text: `N/A: ${summary.na || 0}` }),
+              ],
+            }),
+            new Paragraph({ text: '' }), // Empty line
+
+            // Table
+            new Table({
+              rows: tableRows,
+              width: { size: 100, type: WidthType.PERCENTAGE },
+            }),
+            new Paragraph({ text: '' }), // Empty line
+
+            // Footer
+            new Paragraph({
+              children: [
+                new TextRun({ 
+                  text: `Documento generado el ${new Date().toLocaleDateString()} a las ${new Date().toLocaleTimeString()}`,
+                  italic: true,
+                  size: 18,
+                }),
+              ],
+            }),
+          ],
+        },
+      ],
+    });
+
+    // Generate and download
+    const blob = await Packer.toBlob(doc);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `informe_revision_${report.fecha || 'sin_fecha'}_${report.employee_id || 'empleado'}.docx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
+
   const reports = getReports();
 
   const getColumnHeaders = () => {
@@ -534,16 +754,36 @@ const ReportsManagement = ({
       {reportsError && <div className="panel__error"><p>Error al cargar informes: {reportsError}</p><button type="button" className="dk-btn dk-btn--ghost" onClick={() => fetchReportsByType(activeTab)} style={{ marginTop: '0.5rem' }}>Reintentar</button></div>}
       {!reportsLoading && !reportsError && reports.length > 0 && (
         <>
-          <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button type="button" className="dk-btn dk-btn--primary" onClick={exportToExcel} style={{ padding: '0.5rem 1rem' }}>
               📊 Exportar a Excel
             </button>
+            {activeTab === 'revision' && (
+              <button 
+                type="button" 
+                className="dk-btn dk-btn--primary" 
+                onClick={() => {
+                  if (selectedReportIndex !== null && reports[selectedReportIndex]) {
+                    exportRevisionToWord(reports[selectedReportIndex]);
+                  } else if (reports.length === 1) {
+                    // Auto-select if there's only one report
+                    exportRevisionToWord(reports[0]);
+                  } else {
+                    alert('Selecciona un informe de la lista para exportar a Word');
+                  }
+                }}
+                style={{ padding: '0.5rem 1rem', backgroundColor: '#1e40af', borderColor: '#1e40af' }}
+              >
+                📄 Exportar a Word
+              </button>
+            )}
             <span style={{ color: '#64748b', fontSize: '0.9rem' }}>Total: {reports.length} informe(s)</span>
           </div>
           <div className="records-table-wrapper">
             <table className="records-table">
               <thead>
                 <tr>
+                  {activeTab === 'revision' && <th style={{ width: '40px' }}>✓</th>}
                   {getColumnHeaders().map((header, index) => (
                     <th key={index}>{header}</th>
                   ))}
@@ -551,14 +791,25 @@ const ReportsManagement = ({
                 </tr>
               </thead>
               <tbody>
-                {reports.map((report) => (
-                  <tr key={report.id}>
+                {reports.map((report, index) => (
+                  <tr key={report.id} style={{ backgroundColor: activeTab === 'revision' && selectedReportIndex === index ? '#e0f2fe' : undefined }}>
+                    {activeTab === 'revision' && (
+                      <td>
+                        <input 
+                          type="radio" 
+                          name="selectedReport"
+                          checked={selectedReportIndex === index}
+                          onChange={() => setSelectedReportIndex(index)}
+                          style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                        />
+                      </td>
+                    )}
                     <td>{report.employee_id}</td>
                     <td>{report.fecha}</td>
                     <td>{report.hora}</td>
-                    {getColumnHeaders().slice(3).map((_, index) => {
-                      const value = getCellValue(report, 3 + index);
-                      return <td key={index}>{value !== null ? value : '-'}</td>;
+                    {getColumnHeaders().slice(3).map((_, idx) => {
+                      const value = getCellValue(report, 3 + idx);
+                      return <td key={idx}>{value !== null ? value : '-'}</td>;
                     })}
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'nowrap' }}>
